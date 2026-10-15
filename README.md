@@ -51,3 +51,7 @@ secrets also need `--confirm <operationId>`.
 - [Changelog](CHANGELOG.md)
 
 In the terminal: `cchp guide` lists short guides, and every command has `--help`.
+
+## License
+
+[MIT](LICENSE)
