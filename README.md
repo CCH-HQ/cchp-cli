@@ -14,7 +14,7 @@ CCHP（Claude Code Hub Plus）的命令行工具。命令行代码尚未开始�
 
 ## 认证
 
-命令行工具使用管理 API token：在控制台的「账户 → API 密钥」创建，调用时带上请求头
+命令行工具使用管理 API token：在控制台「账户 → 安全 → 管理令牌」（`/app/account/security`）创建，调用时带上请求头
 
 ```
 Authorization: Bearer cch_auth_live_<prefix>_<secret>
