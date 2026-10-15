@@ -31556,7 +31556,7 @@ components:
 info:
   description: CCHP 控制面(企业管理面)REST API。Go struct 为唯一契约源,本 spec 为反射产物。
   title: CCHP Control Plane API
-  version: 1.0.6
+  version: dev
 openapi: 3.1.0
 paths:
   /api/account/announcements:

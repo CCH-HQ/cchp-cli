@@ -1,0 +1,57 @@
+version: 2
+
+project_name: cchp
+
+before:
+  hooks:
+    # The embedded catalog must match the pinned spec before anything is built.
+    - go run ./cmd/cchp-gen -check
+
+builds:
+  - id: cchp
+    main: ./cmd/cchp
+    binary: cchp
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }} -X main.commit={{ .ShortCommit }} -X main.date={{ .Date }}
+
+archives:
+  - id: cchp
+    ids: [cchp]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "cchp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Other changes
+      order: 999
+
+release:
+  github:
+    owner: CCH-HQ
+    name: cchp-cli
+  draft: false
+  prerelease: auto
