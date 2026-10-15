@@ -45,9 +45,12 @@ fi
 
 tag="${CCHP_VERSION:-}"
 if [ -z "$tag" ]; then
-  # The latest-release page redirects to .../releases/tag/<tag>.
+  # The latest-release page redirects to .../releases/tag/<tag>, or to .../releases when none is published.
   latest="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")"
-  tag="${latest##*/}"
+  case "$latest" in
+    */releases/tag/*) tag="${latest##*/}" ;;
+    *) fail "no cchp release is published yet; see https://github.com/$repo/releases" ;;
+  esac
 fi
 case "$tag" in
   v*) ;;
