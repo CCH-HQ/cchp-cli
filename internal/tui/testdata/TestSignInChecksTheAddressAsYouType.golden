@@ -1,0 +1,14 @@
+  cchp  CCHP from your terminal
+  Not signed in
+
+  Sign in
+
+  ┃ Server address
+  ┃ Use https:// for servers on other machines; plain http is only
+  ┃ allowed for this computer
+  ┃ > http://hub.example.com
+
+    Management token
+    Create one in the console: Account › Security › Management tokens.
+
+  enter next  ·  shift+tab back  ·  esc cancel

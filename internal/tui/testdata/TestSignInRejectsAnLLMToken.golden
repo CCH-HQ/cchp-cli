@@ -1,0 +1,17 @@
+  cchp  CCHP from your terminal
+  Not signed in
+
+  Sign in
+
+    Server address
+    ✓ Looks right
+    > https://hub.example.com
+
+  ┃ Management token
+  ┃ Create one in the console: Account › Security › Management tokens.
+  ┃ > ***********************
+
+  This is an LLM token for calling models; cchp needs a management token
+  (cch_auth_live_…)
+
+  enter next  ·  shift+tab back  ·  esc cancel
