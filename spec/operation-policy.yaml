@@ -1,0 +1,576 @@
+# Risk, secret, pagination and retry policy for every CCHP operation.
+#
+# risk: read (agent mode runs it by default), write (needs --allow-write) or
+#   destructive (also needs --confirm <operationId>). An operation missing here
+#   is treated as write.
+# retry: true lets cchp retry transient failures automatically; reads only.
+# permission: the CCHP permission the server checks, used in plain-language errors.
+# secret_fields: response fields that hold a one-time secret; the caller must
+#   name a destination with --secret-out and the value never reaches stdout.
+# pagination: how to walk pages (style cursor or page).
+version: 1
+defaults:
+  risk: write
+operations:
+  abortConfigExperiment: {risk: destructive, permission: "config:publish"}
+  acceptInvitation: {risk: write}
+  activateLLMKeyAccountSetupTOTP: {risk: write}
+  activateMFATotp: {risk: write}
+  addTeamMember: {risk: write, permission: "team_member:invite"}
+  advanceConfigExperimentRamp: {risk: write, permission: "config:publish"}
+  applyCasbinMembershipRepair: {risk: destructive, permission: "identity:write"}
+  applyProviderKeyModelSync: {risk: destructive, permission: "provider_key:write"}
+  applyProviderKeysUpstreamRatio: {risk: destructive, permission: "provider_key:write"}
+  applyRedeemCodes: {risk: destructive, permission: "operations:write"}
+  approveReprice: {risk: destructive, permission: "billing:approve"}
+  batchCreateProviderBundle: {risk: write, permission: "provider:write"}
+  batchCreateProviderEndpoints: {risk: write, permission: "provider:write"}
+  batchCreateProviderKeys: {risk: write, permission: "provider_key:write"}
+  batchMoveMembers: {risk: destructive, permission: "organization:write"}
+  batchTestProviderKeyLiveness: {risk: write, permission: "provider_key:write"}
+  batchUpdateProviderKeyPriorities: {risk: write, permission: "provider_key:write"}
+  batchUpdateProviderKeys: {risk: write, permission: "provider_key:write"}
+  beginAccountPasskeyRegistration: {risk: write}
+  beginAccountPasskeyStepUp: {risk: write}
+  beginLLMKeyAccountSetupPasskey: {risk: write}
+  beginPasskeyMFA: {risk: write}
+  beginPasskeySignIn: {risk: write}
+  bindLLMKeyAccountSetupEmail: {risk: write}
+  cancelAdminPaymentOrder: {risk: destructive, permission: "payment_order:write"}
+  cancelCCHubImport: {risk: destructive, permission: "config:write"}
+  cancelPaymentOrder: {risk: destructive, permission: "wallet:use"}
+  cancelProfilingCapture: {risk: destructive, permission: "profiling:run"}
+  cancelReprice: {risk: destructive}
+  cancelTask: {risk: destructive, permission: "task:cancel"}
+  cancelTransactionalEmail: {risk: destructive, permission: "operations:write"}
+  changeAccountEmail: {risk: write}
+  changeAccountPassword: {risk: write}
+  checkSecurityChallengeProvider: {risk: write, permission: "config:read"}
+  checkSystemUpdates: {risk: read, retry: true, permission: "config:read"}
+  claimReferral: {risk: write, permission: "wallet:use"}
+  clearBrowserSession: {risk: destructive}
+  clearOrgEntitlement: {risk: destructive, permission: "organization:write"}
+  clearProviderKeySipWebhookSecret: {risk: destructive, permission: "provider_key:write"}
+  compareProfilingCaptures: {risk: read, retry: true, permission: "profiling:read"}
+  completeLLMKeyAccountSetup: {risk: write}
+  completeOAuthAuthentication: {risk: read, retry: true}
+  completeSAMLAuthentication: {risk: write}
+  completeSSOOIDCAuthentication: {risk: read, retry: true}
+  completeSetup: {risk: write}
+  configRealtime: {risk: read, retry: true, permission: "config:read"}
+  confirmLLMKeyAccountSetupProfile: {risk: write}
+  createAPIKey: {risk: write, permission: "token:create", secret_fields: [plaintext]}
+  createAPIKeySession: {risk: write}
+  createAccountOrg: {risk: write, permission: "organization:write"}
+  createAdminPaymentOrder: {risk: write, permission: "payment_order:write"}
+  createAdminUserInvitation: {risk: write, permission: "member:invite"}
+  createAnnouncement: {risk: write, permission: "operations:write"}
+  createArchiveDestination: {risk: write, permission: "config:write"}
+  createBillingAdjustment: {risk: destructive, permission: "operations:write"}
+  createCLIClient: {risk: write, permission: "identity:write"}
+  createCapChallenge: {risk: write}
+  createConfigExperiment: {risk: write, permission: "config:write"}
+  createConfigM2Draft: {risk: write, permission: "config:write"}
+  createDeviceAuthorization: {risk: write}
+  createDispute: {risk: write, permission: "billing:dispute:create"}
+  createDomainBinding: {risk: write, permission: "domain_binding:write"}
+  createErrorRule: {risk: write, permission: "error_rule:write"}
+  createLLMKeySession: {risk: write}
+  createLLMToken: {risk: write, permission: "llm_token:create", secret_fields: [plaintext]}
+  createLocalUser: {risk: write, permission: "identity:write"}
+  createMemberLLMKey: {risk: write, permission: "llm_token:create", secret_fields: [plaintext]}
+  createModel: {risk: write, permission: "provider:write"}
+  createModelSafetyRule: {risk: write, permission: "config:write"}
+  createModelSafetyTask: {risk: write, permission: "config:write"}
+  createNotificationConnector: {risk: write, permission: "config:write"}
+  createOrg: {risk: write, permission: "organization:write"}
+  createOrgCustomRole: {risk: write, permission: "identity:write"}
+  createOrgInvite: {risk: write, permission: "org_invite:create"}
+  createOrgProvider: {risk: write, permission: "provider:write"}
+  createOrgSSOConnector: {risk: write, permission: "identity:write"}
+  createPaymentChannel: {risk: write, permission: "payment_channel:write"}
+  createPaymentOrder: {risk: write, permission: "wallet:use"}
+  createProviderEndpoint: {risk: write, permission: "provider:write"}
+  createProviderGroup: {risk: write, permission: "provider:write"}
+  createProviderKey: {risk: write, permission: "provider_key:write"}
+  createProviderKeyModelSync: {risk: write, permission: "provider_key:write"}
+  createProviderLivenessTask: {risk: write, permission: "provider_key:write"}
+  createProviderModelRedirect: {risk: write, permission: "provider:write"}
+  createQuotaPolicy: {risk: write, permission: "quota_policy:write"}
+  createRealtimeSipRoute: {risk: write, permission: "provider_key:write", secret_fields: [webhook_secret]}
+  createSearchProvider: {risk: write, permission: "provider:write"}
+  createSecurityChallenge: {risk: write}
+  createSetupAdministrator: {risk: write}
+  createSetupOrg: {risk: write}
+  createSetupProvider: {risk: write, permission: "provider:write"}
+  createSocialConnector: {risk: write, permission: "identity:write"}
+  createTaskResultStore: {risk: write, permission: "config:write"}
+  createTeam: {risk: write, permission: "team:write"}
+  createTransactionalEmail: {risk: destructive, permission: "operations:write"}
+  createUsageLogArchiveBundleLink: {risk: write, permission: "request_archive:export", secret_fields: [token, url]}
+  createWalletAffSlug: {risk: write, permission: "wallet:use"}
+  decideDeviceAuthorization: {risk: write}
+  deleteAPIKey: {risk: destructive, permission: "token:revoke"}
+  deleteAdminPlugin: {risk: destructive, permission: "plugin:manage"}
+  deleteAnnouncement: {risk: destructive, permission: "operations:write"}
+  deleteArchiveDestination: {risk: destructive, permission: "config:write"}
+  deleteCLIClient: {risk: destructive, permission: "identity:write"}
+  deleteDomainBinding: {risk: destructive, permission: "domain_binding:write"}
+  deleteErrorRule: {risk: destructive, permission: "error_rule:write"}
+  deleteJITPolicy: {risk: destructive, permission: "jit:write"}
+  deleteModel: {risk: destructive, permission: "provider:write"}
+  deleteModelSafetyRule: {risk: destructive, permission: "config:write"}
+  deleteModelSafetyTask: {risk: destructive, permission: "config:write"}
+  deleteNotificationConnector: {risk: destructive, permission: "config:write"}
+  deleteOrgCustomRole: {risk: destructive, permission: "identity:write"}
+  deleteOrgProvider: {risk: destructive, permission: "provider:write"}
+  deleteOrgSSOConnector: {risk: destructive, permission: "identity:write"}
+  deleteOwnAccount: {risk: destructive}
+  deletePaymentChannel: {risk: destructive, permission: "payment_channel:write"}
+  deleteProviderEndpoint: {risk: destructive, permission: "provider:write"}
+  deleteProviderGroup: {risk: destructive, permission: "provider:write"}
+  deleteProviderLivenessTask: {risk: destructive, permission: "provider_key:write"}
+  deleteProviderModelRedirect: {risk: destructive, permission: "provider:write"}
+  deleteQuotaPolicy: {risk: destructive, permission: "quota_policy:write"}
+  deleteRealtimeSipRoute: {risk: destructive, permission: "provider_key:write"}
+  deleteSearchProvider: {risk: destructive, permission: "provider:write"}
+  deleteSocialConnector: {risk: destructive, permission: "identity:write"}
+  deleteTeam: {risk: destructive, permission: "team:write"}
+  deleteWalletAffSlug: {risk: destructive, permission: "wallet:use"}
+  disableAdminPlugin: {risk: write, permission: "plugin:manage", note: "Reversible with enableAdminPlugin."}
+  disableProviderKey: {risk: write, permission: "provider_key:write", note: "Reversible with enableProviderKey."}
+  discardConfigM2Draft: {risk: destructive, permission: "config:write"}
+  discoverProviderModels: {risk: write, permission: "provider:write"}
+  downloadCCHubImportReport: {risk: read, retry: true, permission: "config:read"}
+  downloadProfilingCapture: {risk: read, retry: true, permission: "profiling:read"}
+  downloadRequestArchiveBundle: {risk: read, retry: true, permission: "request_archive:export"}
+  downloadTaskFile: {risk: read, retry: true, permission: "task:download"}
+  downloadUsageExport: {risk: read, retry: true, permission: "usage:read"}
+  dryRunReprice: {risk: write, permission: "billing:reprice"}
+  enableAdminPlugin: {risk: write, permission: "plugin:manage"}
+  enableProviderKey: {risk: write, permission: "provider_key:write"}
+  enrollLLMKeyAccountSetupTOTP: {risk: write}
+  enrollMFATotp: {risk: write}
+  exchangeDeviceAuthorization: {risk: write}
+  executeReprice: {risk: destructive, permission: "billing:reprice"}
+  exportFinanceEvents: {risk: read, retry: true, permission: "finance_event:read"}
+  exportUsageLogs: {risk: read, retry: true, permission: "usage:read"}
+  failConfigExperiment: {risk: destructive, permission: "config:publish"}
+  fetchProviderKeysUpstream: {risk: write, permission: "provider_key:write"}
+  finishAccountPasskeyRegistration: {risk: write}
+  finishAccountPasskeyStepUp: {risk: write}
+  finishLLMKeyAccountSetupPasskey: {risk: write}
+  finishOAuthEmailVerification: {risk: write}
+  finishPasskeyMFA: {risk: write}
+  finishPasskeySignIn: {risk: write}
+  finishSSOEmailVerification: {risk: write}
+  getAPIKeyPermissionCatalog: {risk: read, retry: true, permission: "token:create"}
+  getAccountOrg: {risk: read, retry: true, permission: "organization:read"}
+  getAccountPageLayout: {risk: read, retry: true, permission: "account:read"}
+  getAccountPreferences: {risk: read, retry: true, permission: "account:read"}
+  getAccountRequestLogConfig: {risk: read, retry: true, permission: "account:read"}
+  getAccountSecurity: {risk: read, retry: true}
+  getAccountStepUpMethods: {risk: read, retry: true}
+  getActiveSession: {risk: read, retry: true, permission: "session:read"}
+  getAdminOrg: {risk: read, retry: true, permission: "organization:read"}
+  getAdminPaymentOrder: {risk: read, retry: true, permission: "payment_order:read"}
+  getAdminPlugin: {risk: read, retry: true, permission: "plugin:read"}
+  getAdminPluginConfig: {risk: read, retry: true, permission: "plugin:read"}
+  getAdminPluginMetrics: {risk: read, retry: true, permission: "plugin:read"}
+  getAnnouncement: {risk: read, retry: true, permission: "announcement:read"}
+  getAnnouncementPopup: {risk: read, retry: true, permission: "announcement:read"}
+  getAnnouncementReadStats: {risk: read, retry: true, permission: "operations:read"}
+  getAuthCSRF: {risk: read, retry: true}
+  getBillingAdjustment: {risk: read, retry: true, permission: "operations:read"}
+  getCCHubImportStatus: {risk: read, retry: true, permission: "config:read"}
+  getCasbinMembershipDiagnostics: {risk: read, retry: true, permission: "identity:read"}
+  getCatalogModelClients: {risk: read, retry: true, permission: "catalog:read"}
+  getCatalogModelExtras: {risk: read, retry: true, permission: "catalog:read"}
+  getCatalogModelPerformance: {risk: read, retry: true, permission: "catalog:read"}
+  getConfigExperiment: {risk: read, retry: true, permission: "config:read"}
+  getConfigM2Draft: {risk: read, retry: true, permission: "config:read"}
+  getConfigM2Page: {risk: read, retry: true, permission: "config:read"}
+  getDefaultMailTemplate: {risk: read, retry: true, permission: "config:read"}
+  getDefaultOrganization: {risk: read, retry: true, permission: "organization:read"}
+  getDeviceFlowStatus: {risk: read, retry: true, permission: "identity:read"}
+  getEffectiveQuota: {risk: read, retry: true, permission: "usage:read"}
+  getFinanceEvent: {risk: read, retry: true, permission: "finance_event:read"}
+  getFinanceEventSummary: {risk: read, retry: true, permission: "finance_event:read"}
+  getHealth: {risk: read, retry: true}
+  getInvoice: {risk: read, retry: true, permission: "billing:read"}
+  getJITPolicy: {risk: read, retry: true, permission: "jit:read"}
+  getLLMKeyAccountSetup: {risk: read, retry: true}
+  getLLMKeyPrefix: {risk: read, retry: true, permission: "llm_token:read"}
+  getLLMKeySession: {risk: read, retry: true}
+  getLatestProviderKeyModelSync: {risk: read, retry: true, permission: "provider_key:read"}
+  getLoginMFAStatus: {risk: read}
+  getMFAStatus: {risk: read, retry: true}
+  getMe: {risk: read, retry: true}
+  getMember: {risk: read, retry: true, permission: "member:read"}
+  getModel: {risk: read, retry: true, permission: "provider:read"}
+  getModelPricing: {risk: read, retry: true, permission: "provider:read"}
+  getModelSafetyRunOperation: {risk: read, retry: true, permission: "config:read"}
+  getModerationSettings: {risk: read, retry: true, permission: "config:read"}
+  getMyPermissionSummary: {risk: read, retry: true}
+  getOperation: {risk: read, retry: true}
+  getOrgBalance: {risk: read, retry: true, permission: "billing:read"}
+  getOrgCustomRole: {risk: read, retry: true, permission: "identity:read"}
+  getOrgHierarchyMatrix: {risk: read, retry: true, permission: "identity:read"}
+  getOrgPermissionCatalog: {risk: read, retry: true, permission: "identity:read"}
+  getOrgProvider: {risk: read, retry: true, permission: "provider:read"}
+  getOrgStorageConfig: {risk: read, retry: true, permission: "organization:read"}
+  getOrgTree: {risk: read, retry: true, permission: "hier_organization:view_self"}
+  getPaymentOrder: {risk: read, retry: true, permission: "wallet:read"}
+  getPermissionCatalog: {risk: read, retry: true, permission: "identity:read"}
+  getPermissionMatrix: {risk: read, retry: true, permission: "identity:read"}
+  getPermissionRoles: {risk: read, retry: true, permission: "identity:read"}
+  getPricingCatalogStatus: {risk: read, retry: true, permission: "model:read"}
+  getPrivacyFilterRulesetStatus: {risk: read, retry: true, permission: "config:read"}
+  getPrivacyFilterSettings: {risk: read, retry: true, permission: "config:read"}
+  getProfilingCapture: {risk: read, retry: true, permission: "profiling:read"}
+  getProfilingCaptureAnalysis: {risk: read, retry: true, permission: "profiling:read"}
+  getProfilingNodeOverview: {risk: read, retry: true, permission: "profiling:read"}
+  getProfilingStatus: {risk: read, retry: true, permission: "profiling:read"}
+  getProviderFavicon: {risk: read, retry: true, permission: "provider:read"}
+  getProviderFaviconStatus: {risk: read, retry: true, permission: "provider:read"}
+  getProviderGroup: {risk: read, retry: true, permission: "provider:read"}
+  getProviderGroupBindings: {risk: read, retry: true, permission: "provider:read"}
+  getProviderGroupSchedulableModels: {risk: read, retry: true, permission: "provider:read"}
+  getProviderGroupScheduling: {risk: read, retry: true, permission: "provider:read"}
+  getProviderInventory: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKeyBalance: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKeyHealthBars: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKeyLivenessContexts: {risk: read, permission: "provider:read"}
+  getProviderKeyModelSync: {risk: read, retry: true, permission: "provider_key:read"}
+  getProviderKeyRuntime: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKeyStats: {risk: read, retry: true, permission: "provider:read"}
+  getPublicCatalogModelClients: {risk: read, retry: true}
+  getPublicCatalogModelExtras: {risk: read, retry: true}
+  getPublicCatalogModelPerformance: {risk: read, retry: true}
+  getRedeemCodeApplyRun: {risk: read, retry: true, permission: "operations:read"}
+  getReleaseTask: {risk: read, retry: true, permission: "operations:read"}
+  getRepriceJob: {risk: read, retry: true, permission: "billing:read"}
+  getRequestFilterSettings: {risk: read, retry: true, permission: "config:read"}
+  getSAMLServiceProviderMetadata: {risk: read, retry: true}
+  getSearchProvider: {risk: read, retry: true, permission: "provider:read"}
+  getSecurityChallengeOverview: {risk: read, retry: true, permission: "config:read"}
+  getSetupDatabaseObservability: {risk: read, retry: true}
+  getSetupStatus: {risk: read, retry: true}
+  getStatusGroup: {risk: read, retry: true}
+  getStatusGroupModelPerformance: {risk: read, retry: true}
+  getStatusGroups: {risk: read, retry: true}
+  getSystemAbout: {risk: read, retry: true, permission: "config:read"}
+  getSystemConfig: {risk: read, retry: true, permission: "config:read"}
+  getSystemDatabaseObservability: {risk: read, retry: true, permission: "config:read"}
+  getSystemHealth: {risk: read, retry: true, permission: "system_health:read"}
+  getTask: {risk: read, retry: true, permission: "task:read"}
+  getTaskResultUsage: {risk: read, retry: true, permission: "config:read"}
+  getTeam: {risk: read, retry: true, permission: "team:read"}
+  getTeamTree: {risk: read, retry: true, permission: "team:read"}
+  getUsageDrilldown: {risk: read, retry: true, permission: "usage:read"}
+  getUsageExport: {risk: read, retry: true, permission: "usage:read"}
+  getUsageGauge: {risk: read, retry: true, permission: "usage:read"}
+  getUsageLeaderboard: {risk: read, retry: true, permission: "usage:read"}
+  getUsageLog: {risk: read, retry: true, permission: "usage:read"}
+  getUsageLogArchive: {risk: read, retry: true, permission: "request_archive:read"}
+  getUsageLogArchiveContext: {risk: read, retry: true, permission: "request_archive:read"}
+  getUsageLogArchiveRaw: {risk: read, retry: true, permission: "request_archive:export"}
+  getUsageModelShare: {risk: read, retry: true, permission: "usage:read"}
+  getUsageProviderHealth: {risk: read, retry: true, permission: "usage:read"}
+  getUsageRank: {risk: read, retry: true, permission: "usage:read"}
+  getUsageStatusDist: {risk: read, retry: true, permission: "usage:read"}
+  getUsageSummary: {risk: read, retry: true, permission: "usage:read"}
+  getUsageTimeseries: {risk: read, retry: true, permission: "usage:read"}
+  getUser: {risk: read, retry: true, permission: "member:read"}
+  getUserAvatar: {risk: read, retry: true}
+  getWalletAff: {risk: read, retry: true, permission: "wallet:read"}
+  getWalletCheckin: {risk: read, retry: true, permission: "wallet:read"}
+  getWalletDailySpend: {risk: read, retry: true, permission: "wallet:read"}
+  getWalletOverview: {risk: read, retry: true, permission: "wallet:read"}
+  getWalletStorefront: {risk: read, retry: true, permission: "wallet:read"}
+  getWhoami: {risk: read, retry: true}
+  importPricingCatalog: {risk: destructive, permission: "model:write"}
+  inspectAdminPlugin: {risk: write, permission: "plugin:manage"}
+  inspectDeviceAuthorization: {risk: write}
+  inspectRequestArchive: {risk: read, permission: "request_archive:read"}
+  inviteMember: {risk: write, permission: "member:invite"}
+  issueRedeemCodes: {risk: destructive, permission: "operations:write", secret_fields: [codes]}
+  joinDefaultOrg: {risk: write}
+  linkOAuthIdentity: {risk: write}
+  linkSSOIdentity: {risk: write}
+  listAPIKeys: {risk: read, retry: true, permission: "token:read"}
+  listAccountClientRules: {risk: read, retry: true, permission: "account:read"}
+  listAccountPasskeys: {risk: read, retry: true}
+  listAccountUserMemberships: {risk: read, retry: true, permission: "member:read"}
+  listActiveSessions: {risk: read, retry: true, permission: "session:read"}
+  listAdjustments: {risk: read, retry: true, permission: "billing:read"}
+  listAdminAnnouncements: {risk: read, retry: true, permission: "operations:read"}
+  listAdminOrgs: {risk: read, retry: true, permission: "organization:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: organizations}}
+  listAdminPaymentOrderPackages: {risk: read, retry: true, permission: "payment_order:write"}
+  listAdminPluginLogs: {risk: read, retry: true, permission: "plugin:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: logs}}
+  listAdminPlugins: {risk: read, retry: true, permission: "plugin:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: plugins}}
+  listAffAssignments: {risk: read, retry: true, permission: "operations:read"}
+  listAnnouncements: {risk: read, retry: true, permission: "announcement:read", pagination: {style: page, param: page, limit_param: pageSize, items: items, total: total}}
+  listArchiveDestinations: {risk: read, retry: true, permission: "config:read"}
+  listArchiveNodes: {risk: read, retry: true, permission: "config:read"}
+  listBillingAdjustments: {risk: read, retry: true, permission: "operations:read"}
+  listCCHubImports: {risk: read, retry: true, permission: "config:read"}
+  listCatalogModels: {risk: read, retry: true, permission: "catalog:read"}
+  listClientRules: {risk: read, retry: true, permission: "operations:read"}
+  listConfigExperiments: {risk: read, retry: true, permission: "config:read"}
+  listConfigM2Drafts: {risk: read, retry: true, permission: "config:read"}
+  listConfigM2Snapshots: {risk: read, retry: true, permission: "config:read"}
+  listConfigScopeEntities: {risk: read, retry: true, permission: "config:read", pagination: {style: cursor, param: cursor, limit_param: limit, items: items, next: next_cursor, has_more: has_more}}
+  listConfigScopes: {risk: read, retry: true, permission: "config:read"}
+  listCronJobRuns: {risk: read, retry: true, permission: "cron:read"}
+  listCronJobs: {risk: read, retry: true, permission: "cron:read"}
+  listDisputes: {risk: read, retry: true, permission: "billing:read"}
+  listDomainBindings: {risk: read, retry: true, permission: "domain_binding:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
+  listErrorRules: {risk: read, retry: true, permission: "error_rule:read"}
+  listFinanceEvents: {risk: read, retry: true, permission: "finance_event:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
+  listInvitations: {risk: read, retry: true, permission: "member:read"}
+  listInviteRedemptions: {risk: read, retry: true, permission: "org_invite:read"}
+  listInvoices: {risk: read, retry: true, permission: "billing:read"}
+  listJITPolicies: {risk: read, retry: true, permission: "identity:read"}
+  listKeySessions: {risk: read, retry: true, permission: "session:read"}
+  listLLMTokenModelSupply: {risk: read, retry: true, permission: "llm_token:read"}
+  listLLMTokenProviderGroups: {risk: read, retry: true, permission: "provider:use"}
+  listLLMTokens: {risk: read, retry: true, permission: "llm_token:read"}
+  listLedgerTransfers: {risk: read, retry: true, permission: "billing:read"}
+  listMemberLLMKeys: {risk: read, retry: true, permission: "llm_token:read"}
+  listMembers: {risk: read, retry: true, permission: "member:read"}
+  listModelNames: {risk: read, retry: true, permission: "provider:read"}
+  listModelSafetyRules: {risk: read, retry: true, permission: "config:read"}
+  listModelSafetyTaskRuns: {risk: read, retry: true, permission: "config:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: runs}}
+  listModelSafetyTasks: {risk: read, retry: true, permission: "config:read"}
+  listModels: {risk: read, retry: true, permission: "provider:read", pagination: {style: page, param: page, limit_param: pageSize, items: models, total: total}}
+  listModerationViolations: {risk: read, retry: true, permission: "config:read"}
+  listNotificationConnectors: {risk: read, retry: true, permission: "config:read"}
+  listOrgAudit: {risk: read, retry: true, permission: "audit:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: events}}
+  listOrgCustomRoles: {risk: read, retry: true, permission: "identity:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: roles}}
+  listOrgEntitlements: {risk: read, retry: true, permission: "organization:read"}
+  listOrgInvites: {risk: read, retry: true, permission: "org_invite:read"}
+  listOrgProviders: {risk: read, retry: true, permission: "provider:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: providers}}
+  listOrgSSOConnectors: {risk: read, retry: true, permission: "identity:read"}
+  listPaymentChannels: {risk: read, retry: true, permission: "payment_channel:read"}
+  listPrivacyFilterBuiltinRules: {risk: read, retry: true, permission: "config:read"}
+  listProfilingCaptures: {risk: read, retry: true, permission: "profiling:read"}
+  listProfilingNodes: {risk: read, retry: true, permission: "profiling:read"}
+  listProviderEndpoints: {risk: read, retry: true, permission: "provider:read"}
+  listProviderFavicons: {risk: read, retry: true, permission: "provider:read"}
+  listProviderGroups: {risk: read, retry: true, permission: "provider:read"}
+  listProviderKeyLivenessStates: {risk: read, retry: true, permission: "provider:read"}
+  listProviderKeys: {risk: read, retry: true, permission: "provider:read"}
+  listProviderKeysUpstreamStates: {risk: read, retry: true, permission: "provider:read"}
+  listProviderLivenessEndpoints: {risk: read, retry: true, permission: "provider:read"}
+  listProviderLivenessTaskRuns: {risk: read, retry: true, permission: "provider:read"}
+  listProviderLivenessTasks: {risk: read, retry: true, permission: "provider:read"}
+  listProviderModelRedirects: {risk: read, retry: true, permission: "provider:read"}
+  listProviderUpstreamCooldowns: {risk: read, retry: true, permission: "provider:read"}
+  listProviders: {risk: read, retry: true, permission: "provider:read"}
+  listPublicCatalogModels: {risk: read, retry: true}
+  listQuotaPolicies: {risk: read, retry: true, permission: "quota_policy:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
+  listRealtimeSipRoutes: {risk: read, retry: true, permission: "provider_key:read"}
+  listRedeemApplyCandidates: {risk: read, retry: true, permission: "operations:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items, total: total}}
+  listRedeemCodeApplyRuns: {risk: read, retry: true, permission: "operations:read"}
+  listReleaseTasks: {risk: read, retry: true, permission: "operations:read"}
+  listSearchProviderTypes: {risk: read, retry: true, permission: "provider:read"}
+  listSearchProviders: {risk: read, retry: true, permission: "provider:read"}
+  listSecurityChallengeEvents: {risk: read, retry: true, permission: "config:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: events}}
+  listSocialConnectors: {risk: read, retry: true, permission: "identity:read"}
+  listTaskFilterOptions: {risk: read, retry: true, permission: "task:read"}
+  listTaskResultStores: {risk: read, retry: true, permission: "config:read"}
+  listTasks: {risk: read, retry: true, permission: "task:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
+  listTeamMembers: {risk: read, retry: true, permission: "team_member:read"}
+  listTeams: {risk: read, retry: true, permission: "team:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
+  listTransactionalEmails: {risk: read, retry: true, permission: "operations:read"}
+  listUsageByKey: {risk: read, retry: true}
+  listUsageByModel: {risk: read, retry: true}
+  listUsageByOrganization: {risk: read, retry: true}
+  listUsageByProvider: {risk: read, retry: true}
+  listUsageByTeam: {risk: read, retry: true}
+  listUsageByUser: {risk: read, retry: true}
+  listUsageLogAttempts: {risk: read, retry: true, permission: "usage:read"}
+  listUsageLogFilterOptions: {risk: read, retry: true, permission: "usage:read"}
+  listUsageLogs: {risk: read, retry: true, permission: "usage:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: page.nextCursor, items: page.items, total: page.total}}
+  listUserMemberships: {risk: read, retry: true, permission: "member:read"}
+  listUserSessions: {risk: read, retry: true}
+  listUsers: {risk: read, retry: true, permission: "member:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: users}}
+  listWalletPaymentChannels: {risk: read, retry: true, permission: "wallet:read"}
+  listWalletRecharges: {risk: read, retry: true, permission: "wallet:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: records}}
+  listWalletReferrals: {risk: read, retry: true, permission: "wallet:read"}
+  logoutUserSession: {risk: write}
+  lookupRequestArchive: {risk: read, permission: "request_archive:read"}
+  markAnnouncementRead: {risk: write, permission: "announcement:update"}
+  markConfigExperimentSucceeded: {risk: write, permission: "config:publish"}
+  matchUpstreamModels: {risk: write, permission: "provider:write"}
+  moveMember: {risk: destructive, permission: "organization:write"}
+  patchAccountOrg: {risk: write, permission: "organization:write"}
+  patchAccountPreferences: {risk: write, permission: "account:update"}
+  pauseReprice: {risk: write}
+  pingDomainBinding: {risk: write, permission: "domain_binding:read"}
+  previewBillingAdjustment: {risk: read, permission: "operations:read"}
+  previewCCHubImport: {risk: write, permission: "config:write"}
+  previewCasbinMembershipRepair: {risk: read, retry: true, permission: "identity:read"}
+  previewInvitation: {risk: write}
+  previewProviderModels: {risk: write, permission: "provider:read"}
+  previewRedeemCodeApply: {risk: read, permission: "operations:read"}
+  previewRedeemCodes: {risk: read, permission: "wallet:use"}
+  previewUnboundProviderModels: {risk: write, permission: "provider:read"}
+  promoteConfigExperiment: {risk: destructive, permission: "config:publish"}
+  publishConfig: {risk: destructive, permission: "config:publish"}
+  purchaseWalletPackage: {risk: destructive, permission: "wallet:use"}
+  purgeProviderKey: {risk: destructive, permission: "provider_key:write"}
+  putAccountPageLayout: {risk: write, permission: "account:update"}
+  putModelPricing: {risk: destructive, permission: "provider:write"}
+  putOrgHierarchyGrant: {risk: write, permission: "identity:write"}
+  reactivateMember: {risk: write, permission: "member:remove"}
+  reactivateOrg: {risk: write, permission: "organization:write"}
+  redeemCapChallenge: {risk: write}
+  redeemCodes: {risk: destructive, permission: "wallet:use"}
+  redeemOrgInvite: {risk: write}
+  redeemSetupToken: {risk: write}
+  refreshProviderFavicon: {risk: write, permission: "provider:write"}
+  regenerateAccountRecoveryCodes: {risk: write}
+  releaseProviderUpstreamCooldown: {risk: write, permission: "provider:write", note: "Ends a temporary cooldown early; nothing is deleted."}
+  removeAccountAvatar: {risk: destructive}
+  removeAccountPasskey: {risk: destructive}
+  removeMFATotp: {risk: destructive}
+  removeMember: {risk: destructive, permission: "member:remove"}
+  removeTeamMember: {risk: destructive, permission: "team_member:remove"}
+  removeUserFromOrg: {risk: destructive, permission: "member:remove"}
+  renameAccountPasskey: {risk: write}
+  reparentOrgTreeNode: {risk: destructive, permission: "team:write"}
+  replaceClientRules: {risk: destructive, permission: "operations:write"}
+  resetAuthPassword: {risk: write}
+  resetModelSafetyRule: {risk: destructive, permission: "config:write"}
+  resetUserSecurity: {risk: write, permission: "identity:write"}
+  resolveSiteLink: {risk: read, retry: true, permission: "config:write"}
+  resumeRedeemCodeApplyRun: {risk: destructive, permission: "operations:write"}
+  resumeReprice: {risk: write}
+  retryCCHubImport: {risk: write, permission: "config:write"}
+  revealLLMToken: {risk: write, permission: "llm_token:read"}
+  revealMemberLLMKey: {risk: write, permission: "llm_token:reveal_member"}
+  revealProviderKey: {risk: write, permission: "provider_key:reveal"}
+  revealSearchProviderKey: {risk: write, permission: "provider_key:reveal"}
+  revertBillingAdjustment: {risk: destructive, permission: "operations:write"}
+  revokeAPIKey: {risk: destructive, permission: "token:revoke"}
+  revokeAPIKeySession: {risk: destructive}
+  revokeAllUserSessions: {risk: destructive}
+  revokeInvitation: {risk: destructive, permission: "member:revoke_invitation"}
+  revokeKeySession: {risk: destructive, permission: "session:write"}
+  revokeLLMKeySession: {risk: destructive}
+  revokeLLMToken: {risk: destructive, permission: "llm_token:revoke"}
+  revokeMemberLLMKey: {risk: destructive, permission: "llm_token:revoke"}
+  revokeOrgInvite: {risk: destructive, permission: "org_invite:revoke"}
+  revokeProviderKey: {risk: destructive, permission: "provider_key:write"}
+  revokeUserSession: {risk: destructive}
+  rollbackConfigM2: {risk: destructive, permission: "config:publish"}
+  rotateAPIKey: {risk: destructive, permission: "token:rotate"}
+  rotateMemberLLMKey: {risk: destructive, permission: "llm_token:rotate", secret_fields: [plaintext]}
+  rotateProviderKey: {risk: destructive, permission: "provider_key:rotate"}
+  ruleDispute: {risk: destructive, permission: "billing:dispute:rule"}
+  runCronJobNow: {risk: write, permission: "cron:run"}
+  runModelSafetyTaskNow: {risk: write, permission: "config:write"}
+  runModelSafetyTest: {risk: write, permission: "config:write"}
+  runProviderLivenessTaskNow: {risk: write, permission: "provider_key:write"}
+  saveAdminPluginConfig: {risk: write, permission: "plugin:manage"}
+  saveAdminPluginTargets: {risk: write, permission: "plugin:manage"}
+  saveModerationSettings: {risk: write, permission: "config:write"}
+  savePrivacyFilterSettings: {risk: write, permission: "config:write"}
+  saveRequestFilterSettings: {risk: write, permission: "config:write"}
+  saveSetupSite: {risk: write}
+  saveSystemConfig: {risk: destructive, permission: "config:write"}
+  searchAuditLogs: {risk: read, retry: true, permission: "audit:read", pagination: {style: page, param: page, limit_param: pageSize, items: items, total: total}}
+  sendAccountEmailChangeCode: {risk: write}
+  sendAccountStepUpEmailCode: {risk: write}
+  sendAuthEmailCode: {risk: write}
+  sendLLMKeyAccountSetupEmailCode: {risk: write}
+  sendTestMail: {risk: write, permission: "config:write"}
+  setAffAssignment: {risk: write, permission: "operations:write"}
+  setDefaultOrganization: {risk: destructive, permission: "organization:write"}
+  setLLMKeyAccountSetupPassword: {risk: write}
+  setModelPricingSource: {risk: write, permission: "model:write"}
+  setOrgEntitlement: {risk: destructive, permission: "organization:write"}
+  setPrivacyFilterRulesetAutoUpdate: {risk: write, permission: "config:write"}
+  setProviderKeySipWebhookSecret: {risk: write, permission: "provider_key:write"}
+  setUserOrgRole: {risk: destructive, permission: "member:role:update"}
+  signInWithEmailCode: {risk: write}
+  signInWithPassword: {risk: write}
+  signUp: {risk: write}
+  skipLLMKeyAccountSetupMFA: {risk: write}
+  startCCHubImport: {risk: destructive, permission: "config:write"}
+  startConfigExperimentAnalyze: {risk: write, permission: "config:publish"}
+  startConfigExperimentRamp: {risk: write, permission: "config:publish"}
+  startOAuthAuthentication: {risk: write}
+  startProfilingCapture: {risk: write, permission: "profiling:run"}
+  startSSOAuthentication: {risk: write}
+  stepUpAccountEmailCode: {risk: write}
+  stepUpAccountPassword: {risk: write}
+  stepUpAccountRecoveryCode: {risk: write}
+  stepUpAccountTOTP: {risk: write}
+  streamAuditLogs: {risk: read, retry: true, permission: "audit:read"}
+  streamModerationViolations: {risk: read, retry: true, permission: "config:read"}
+  streamRealtimeMetrics: {risk: read, retry: true, permission: "usage:read"}
+  streamSystemHealth: {risk: read, retry: true, permission: "system_health:read"}
+  streamUsageRealtime: {risk: read, retry: true, permission: "usage:read"}
+  suspendMember: {risk: destructive, permission: "member:remove"}
+  suspendOrg: {risk: destructive, permission: "organization:write"}
+  syncAdminPaymentOrder: {risk: write, permission: "payment_order:write"}
+  syncPricingCatalog: {risk: destructive, permission: "model:write"}
+  terminateActiveSession: {risk: destructive, permission: "session:write"}
+  testArchiveDestination: {risk: write, permission: "config:write"}
+  testErrorRule: {risk: read, permission: "error_rule:read"}
+  testModeration: {risk: read, permission: "config:read"}
+  testNotificationConnector: {risk: write, permission: "config:write"}
+  testPaymentChannel: {risk: write, permission: "payment_channel:write"}
+  testPrivacyFilter: {risk: read, permission: "config:read"}
+  testProvider: {risk: write, permission: "provider:test"}
+  testProviderCredentialLiveness: {risk: write, permission: "provider_key:write"}
+  testProviderKeyLiveness: {risk: write, permission: "provider_key:write"}
+  testRequestFilter: {risk: read, permission: "config:read"}
+  testSearchProvider: {risk: write, permission: "provider:test"}
+  testTaskResultStore: {risk: write, permission: "config:write"}
+  transferOrgOwner: {risk: destructive, permission: "organization:write"}
+  unlinkAccountIdentity: {risk: destructive}
+  updateAccountProfile: {risk: write}
+  updateAnnouncement: {risk: write, permission: "operations:write"}
+  updateArchiveDestination: {risk: write, permission: "config:write"}
+  updateCLIClient: {risk: write, permission: "identity:write"}
+  updateCronJob: {risk: write, permission: "cron:write"}
+  updateDomainBinding: {risk: write, permission: "domain_binding:write"}
+  updateErrorRule: {risk: write, permission: "error_rule:write"}
+  updateLLMToken: {risk: write, permission: "llm_token:update"}
+  updateMember: {risk: write, permission: "member:role:update"}
+  updateMemberLLMKey: {risk: write, permission: "llm_token:update"}
+  updateMemberRole: {risk: destructive, permission: "member:role:update"}
+  updateModel: {risk: write, permission: "provider:write"}
+  updateModelSafetyRule: {risk: write, permission: "config:write"}
+  updateModelSafetyTask: {risk: write, permission: "config:write"}
+  updateNotificationConnector: {risk: write, permission: "config:write"}
+  updateOrgCustomRole: {risk: write, permission: "identity:write"}
+  updateOrgProvider: {risk: write, permission: "provider:write"}
+  updateOrgSSOConnector: {risk: write, permission: "identity:write"}
+  updateOrgStorageConfig: {risk: write, permission: "organization:write"}
+  updatePaymentChannel: {risk: write, permission: "payment_channel:write"}
+  updatePrivacyFilterRuleset: {risk: destructive, permission: "config:write"}
+  updateProviderEndpoint: {risk: write, permission: "provider:write"}
+  updateProviderGroup: {risk: write, permission: "provider:write"}
+  updateProviderKey: {risk: write, permission: "provider_key:write"}
+  updateProviderLivenessTask: {risk: write, permission: "provider_key:write"}
+  updateProviderModelRedirect: {risk: write, permission: "provider:write"}
+  updateQuotaPolicy: {risk: write, permission: "quota_policy:write"}
+  updateRealtimeSipRoute: {risk: write, permission: "provider_key:write", secret_fields: [webhook_secret]}
+  updateSearchProvider: {risk: write, permission: "provider:write"}
+  updateSetupProgress: {risk: write}
+  updateSocialConnector: {risk: write, permission: "identity:write"}
+  updateTaskResultStore: {risk: write, permission: "config:write"}
+  updateTeam: {risk: write, permission: "team:write"}
+  updateTeamMemberRole: {risk: destructive, permission: "team_member:role:update"}
+  uploadAccountAvatar: {risk: write}
+  uploadAdminPlugin: {risk: destructive, permission: "plugin:manage"}
+  uploadCCHubImport: {risk: write, permission: "config:write"}
+  upsertJITPolicy: {risk: write, permission: "jit:write"}
+  verifyLoginMFA: {risk: write}
+  verifySecurityChallenge: {risk: write}
+  walletCheckin: {risk: write, permission: "wallet:use"}
