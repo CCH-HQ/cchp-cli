@@ -29,6 +29,7 @@ archives:
         formats: [zip]
     name_template: "cchp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
+      - LICENSE
       - README.md
       - CHANGELOG.md
 
