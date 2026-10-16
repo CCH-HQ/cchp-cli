@@ -13,6 +13,21 @@ cchp usage trend --granularity day
 
 Costs are in credits. Add `--json` to any command for exact numbers.
 
+In the home screen, **See usage** opens a dashboard with a daily heatmap.
+Use `Tab` for requests/tokens/cost, the arrows to select a day, `1`/`2`/`3`
+for today/week/month, and `PgUp`/`PgDn` to scroll. Calendar days use UTC.
+
+## Balance and packages
+
+```
+cchp billing wallet                      # your balance and owned packages
+```
+
+Choose **My account** from the home screen, or press `a` on the usage
+dashboard, to see remaining package credits, periodic allowances and expiry.
+Your wallet balance and package allowances are separate. Viewing them requires
+`wallet:read`; these screens do not make purchases or change your account.
+
 ## Providers
 
 ```

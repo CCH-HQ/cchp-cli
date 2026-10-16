@@ -294,7 +294,7 @@ func wrapCommand(command string, width int) string {
 // with its value.
 func splitBeforeFlags(command string) []string {
 	var parts []string
-	for _, word := range strings.Split(command, " ") {
+	for word := range strings.SplitSeq(command, " ") {
 		if len(parts) > 0 && !strings.HasPrefix(word, "--") {
 			parts[len(parts)-1] += " " + word
 			continue

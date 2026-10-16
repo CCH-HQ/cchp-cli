@@ -53,15 +53,16 @@ func (a *app) opCommand(op *catalog.Operation, use string, hidden bool) *cobra.C
 			pathParams = append(pathParams, p)
 		}
 	}
-	usage := use
+	var usage strings.Builder
+	usage.WriteString(use)
 	for _, p := range pathParams {
 		if p.Name == "orgId" {
 			continue
 		}
-		usage += " [" + p.Flag + "]"
+		usage.WriteString(" [" + p.Flag + "]")
 	}
 	cmd := &cobra.Command{
-		Use:     usage,
+		Use:     usage.String(),
 		Short:   op.Summary,
 		Long:    opLong(op),
 		Hidden:  hidden,

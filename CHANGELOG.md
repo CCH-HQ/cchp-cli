@@ -2,11 +2,27 @@
 
 ## [Unreleased]
 
+## [v0.1.1] - 2026-10-16
+
 ### Added
 
+- A terminal usage dashboard with period metrics, a navigable 365-day activity
+  heatmap for requests, tokens and cost, and responsive layouts. Calendar days
+  use UTC; each widget reports loading and errors independently.
+- A personal account view with wallet balance, owned packages, current-period
+  allowances and expiry dates, plus a wallet summary on the usage dashboard.
 - Homebrew installation through `cch-hq/tap/cchp` for macOS and Linux on
   amd64 and arm64, including shell completions. Stable releases automatically
   update the tap after verifying the published archives and checksums.
+
+### Changed
+
+- The project is MIT-licensed, and release archives include `LICENSE`.
+
+### Fixed
+
+- The install script explains when no release has been published instead of
+  trying to download an archive from an invalid release URL.
 
 ## [v0.1.0]
 
@@ -59,5 +75,6 @@ Restish v2.3.0.
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
 
-[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.1...HEAD
+[v0.1.1]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/CCH-HQ/cchp-cli/releases/tag/v0.1.0

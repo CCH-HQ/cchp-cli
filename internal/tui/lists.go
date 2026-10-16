@@ -61,14 +61,11 @@ func newListScreen(spec listSpec) *listScreen {
 
 func (s *listScreen) init(m *Model) tea.Cmd {
 	s.resize(m)
-	return m.fetch(s.key, s.spec.opID, s.spec.params)
+	return m.fetch(s, s.key, s.spec.opID, s.spec.params)
 }
 
 func (s *listScreen) resize(m *Model) {
-	h := m.height - 7
-	if h < 6 {
-		h = 6
-	}
+	h := max(m.height-7, 6)
 	s.list.SetSize(m.width, h)
 }
 
@@ -108,7 +105,7 @@ func (s *listScreen) update(m *Model, msg tea.Msg) tea.Cmd {
 		case "r":
 			if !filtering {
 				s.loading, s.err = true, nil
-				return m.fetch(s.key, s.spec.opID, s.spec.params)
+				return m.fetch(s, s.key, s.spec.opID, s.spec.params)
 			}
 		case "enter":
 			if !filtering {
@@ -390,7 +387,7 @@ func groupDigits(s string) string {
 
 func lookupPath(m map[string]any, path string) any {
 	var cur any = m
-	for _, part := range strings.Split(path, ".") {
+	for part := range strings.SplitSeq(path, ".") {
 		obj, ok := cur.(map[string]any)
 		if !ok {
 			return nil

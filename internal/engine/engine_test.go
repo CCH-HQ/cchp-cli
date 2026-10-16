@@ -198,8 +198,7 @@ func TestUnreachableServerIsNotSent(t *testing.T) {
 	base := srv.URL
 	srv.Close()
 	_, err := newEngine(t, base).Do(context.Background(), engine.Request{Op: op(t, "createOrgProvider"), PathArgs: []string{"o"}, JSONBody: []byte(`{"name":"x"}`)})
-	var notSent *engine.NotSentError
-	if !errors.As(err, &notSent) {
+	if _, ok := errors.AsType[*engine.NotSentError](err); !ok {
 		t.Fatalf("want NotSentError, got %T %v", err, err)
 	}
 }
@@ -215,8 +214,7 @@ func TestMutationWithoutAnswerIsUnknownAndNotRetried(t *testing.T) {
 	srv := httptest.NewServer(rec)
 	defer srv.Close()
 	_, err := newEngine(t, srv.URL).Do(ctx, engine.Request{Op: op(t, "createOrgProvider"), PathArgs: []string{"o"}, JSONBody: []byte(`{"name":"x"}`)})
-	var unknown *engine.UnknownOutcomeError
-	if !errors.As(err, &unknown) {
+	if _, ok := errors.AsType[*engine.UnknownOutcomeError](err); !ok {
 		t.Fatalf("want UnknownOutcomeError, got %T %v", err, err)
 	}
 	time.Sleep(2500 * time.Millisecond)
@@ -232,8 +230,7 @@ func TestDeadlineBeforeSendingIsNotSentAndStaysUnsent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err := newEngine(t, srv.URL).Do(ctx, engine.Request{Op: op(t, "createOrgProvider"), PathArgs: []string{"o"}, JSONBody: []byte(`{"name":"x"}`)})
-	var notSent *engine.NotSentError
-	if !errors.As(err, &notSent) {
+	if _, ok := errors.AsType[*engine.NotSentError](err); !ok {
 		t.Fatalf("want NotSentError, got %T %v", err, err)
 	}
 	// The abandoned run finishes before the next run starts; it must not send.

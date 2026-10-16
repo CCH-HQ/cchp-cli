@@ -81,8 +81,7 @@ func itemDelegate() list.DefaultDelegate {
 
 // plainError explains an error in plain words, with the request ID in small print.
 func plainError(err error) string {
-	var f *contract.Failure
-	if errors.As(err, &f) {
+	if f, ok := errors.AsType[*contract.Failure](err); ok {
 		var b strings.Builder
 		b.WriteString(ui.Failure.Render("✗ ") + ui.Sentence(f.Err.Message))
 		if f.Err.Hint != "" {

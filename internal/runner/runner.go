@@ -13,9 +13,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -321,8 +323,7 @@ func (r *Runner) orgID(ctx context.Context, o Options) (string, error) {
 	}
 	id, err := r.Identity(ctx)
 	if err != nil {
-		var f *contract.Failure
-		if errors.As(err, &f) {
+		if f, ok := errors.AsType[*contract.Failure](err); ok {
 			return "", f
 		}
 		return "", notSignedIn(err)
@@ -336,9 +337,7 @@ func (r *Runner) orgID(ctx context.Context, o Options) (string, error) {
 func (r *Runner) collectParams(ctx context.Context, o Options) (map[string][]string, error) {
 	op := o.Op
 	params := map[string][]string{}
-	for k, v := range o.Params {
-		params[k] = v
-	}
+	maps.Copy(params, o.Params)
 	for _, p := range op.Params {
 		vals := params[p.Flag]
 		if len(vals) == 0 && p.In == "path" && p.Name == "orgId" {
@@ -396,10 +395,8 @@ func checkValue(p catalog.Param, v string) error {
 		return fmt.Errorf("--%s cannot be empty", p.Flag)
 	}
 	if len(p.Enum) > 0 {
-		for _, e := range p.Enum {
-			if e == v {
-				return nil
-			}
+		if slices.Contains(p.Enum, v) {
+			return nil
 		}
 		return fmt.Errorf("--%s must be one of %s, got %q", p.Flag, strings.Join(p.Enum, ", "), v)
 	}
@@ -571,12 +568,7 @@ func plural(n int) string {
 }
 
 func contains(list []string, s string) bool {
-	for _, x := range list {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, s)
 }
 
 func first(v []string) string {

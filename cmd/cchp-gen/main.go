@@ -853,14 +853,15 @@ func (g *generator) engineCompatibility(workdir string) error {
 		if op.Status != catalog.StatusAvailable || built[op.ID] {
 			continue
 		}
-		reason := "The embedded Restish engine could not build a command for this operation."
-		for _, line := range strings.Split(warnings, "\n") {
+		var reason strings.Builder
+		reason.WriteString("The embedded Restish engine could not build a command for this operation.")
+		for line := range strings.SplitSeq(warnings, "\n") {
 			if strings.Contains(line, op.Path) || strings.Contains(line, op.ID) {
-				reason += " Engine message: " + strings.TrimSpace(line)
+				reason.WriteString(" Engine message: " + strings.TrimSpace(line))
 				break
 			}
 		}
-		op.Status, op.Reason = catalog.StatusUnsupported, reason
+		op.Status, op.Reason = catalog.StatusUnsupported, reason.String()
 		delete(g.schemas, op.ID)
 	}
 	return nil

@@ -1,8 +1,9 @@
 # cchp
 
 The command-line tool for [CCHP (Claude Code Hub Plus)](https://github.com/CCH-HQ/claude-code-hub-plus).
-People get a home screen with usage, providers, keys, LLM tokens and recent
-requests. Agents and scripts get every control-plane operation behind one
+People get a home screen with a usage heatmap, wallet and package details,
+providers, keys, LLM tokens and recent requests. Agents and scripts get every
+control-plane operation behind one
 predictable JSON contract.
 
 ![The cchp home screen](docs/media/home.gif)

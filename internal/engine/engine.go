@@ -405,16 +405,14 @@ func (e *Engine) run(ctx context.Context, req Request) (*Result, *PlannedRequest
 }
 
 func classify(err error, sent bool, stderr string) error {
-	var notSent *NotSentError
-	if errors.As(err, &notSent) {
+	if notSent, ok := errors.AsType[*NotSentError](err); ok {
 		return notSent
 	}
 	var opErr *net.OpError
 	if errors.As(err, &opErr) && opErr.Op == "dial" {
 		return &NotSentError{Err: err}
 	}
-	var dnsErr *net.DNSError
-	if errors.As(err, &dnsErr) {
+	if _, ok := errors.AsType[*net.DNSError](err); ok {
 		return &NotSentError{Err: err}
 	}
 	if !sent {
@@ -589,7 +587,7 @@ func Commands(stateDir string, specGzip []byte) ([]string, string, error) {
 		return nil, stderr.String(), err
 	}
 	var names []string
-	for _, line := range strings.Split(stdout.String(), "\n") {
+	for line := range strings.SplitSeq(stdout.String(), "\n") {
 		if line == "" || strings.HasPrefix(line, ":") {
 			continue
 		}

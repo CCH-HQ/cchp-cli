@@ -132,13 +132,11 @@ func excludedFailure(op *catalog.Operation) *contract.Failure {
 // transportFailure classifies an engine error by whether the request may have
 // reached the server. Mutations are never retried automatically.
 func transportFailure(op *catalog.Operation, err error, idemKey string) error {
-	var f *contract.Failure
-	if errors.As(err, &f) {
+	if f, ok := errors.AsType[*contract.Failure](err); ok {
 		return f
 	}
 	msg := redact.String(err.Error())
-	var notSent *engine.NotSentError
-	if errors.As(err, &notSent) {
+	if _, ok := errors.AsType[*engine.NotSentError](err); ok {
 		out := contract.Fail(contract.KindNotSent, contract.ExitNotSent, "The request was not sent: %s", msg)
 		out.Err.Retryable = true
 		if op.Method != http.MethodGet {

@@ -107,8 +107,7 @@ func Run(args []string, stdio IO, build BuildInfo) int {
 	if err == nil {
 		return contract.ExitOK
 	}
-	var f *contract.Failure
-	if errors.As(err, &f) {
+	if f, ok := errors.AsType[*contract.Failure](err); ok {
 		return a.report(f)
 	}
 	return a.report(usageFailure(err))

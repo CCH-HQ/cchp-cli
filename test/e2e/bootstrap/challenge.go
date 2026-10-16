@@ -107,7 +107,7 @@ func solveCap(token string, c, saltLen, targetLen int) ([]int64, error) {
 		salt := capPRNG(token+strconv.Itoa(i), saltLen)
 		target := capPRNG(token+strconv.Itoa(i)+"d", targetLen)
 		found := false
-		for nonce := int64(0); nonce < 50_000_000; nonce++ {
+		for nonce := range int64(50_000_000) {
 			sum := sha256.Sum256([]byte(salt + strconv.FormatInt(nonce, 10)))
 			if strings.HasPrefix(hex.EncodeToString(sum[:]), target) {
 				out[i-1] = nonce

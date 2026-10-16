@@ -182,7 +182,7 @@ func getPath(m map[string]any, path string) any {
 		return nil
 	}
 	var cur any = m
-	for _, part := range strings.Split(path, ".") {
+	for part := range strings.SplitSeq(path, ".") {
 		obj, ok := cur.(map[string]any)
 		if !ok {
 			return nil

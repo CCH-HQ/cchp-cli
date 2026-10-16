@@ -152,7 +152,7 @@ func (s *loginScreen) view(m *Model) string {
 		b.WriteString("  " + m.spin.View() + " Checking your token with " + s.server + "…")
 		return b.String()
 	}
-	for _, line := range strings.Split(s.form.View(), "\n") {
+	for line := range strings.SplitSeq(s.form.View(), "\n") {
 		b.WriteString("  " + line + "\n")
 	}
 	if s.err != nil {

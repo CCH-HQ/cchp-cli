@@ -8,17 +8,46 @@ Run `cchp` in a terminal. Move with the arrow keys and press Enter.
 
 | Task | What you see |
 | --- | --- |
-| See usage | Requests, success rate, tokens and cost for today, this week and this month, and the busiest models |
+| See usage | A usage dashboard with daily activity, period metrics, your wallet summary and the busiest models |
 | Providers | Your upstream providers; press `/` to search, Enter for details |
 | Provider keys | Pick a provider, then see its keys |
 | LLM tokens | The keys your apps use to call models |
 | Recent requests | The latest calls through the gateway; Enter shows one request |
+| My account | Your wallet balance, owned packages, remaining allowances and expiry dates |
 | Guides | Short how-tos |
 
 Details show the most useful fields first; press `a` for every field. `Esc`
 goes back, `q` leaves.
 
-![Usage](media/home-usage.png)
+### Usage dashboard
+
+The dashboard shows requests, input/output tokens, cost and success rate. Press
+`1`, `2` or `3` for today, this week or this month.
+
+The activity heatmap covers the past 365 days, including today. Each column is
+a week starting on Monday. Press `Tab` to switch between requests, tokens and
+cost, `←`/`→` to move a week, and `↑`/`↓` to move a day. The selected day's exact
+counts and cost appear below the grid. `Home` and `End` jump to the oldest day
+and today. Dates and calendar boundaries use UTC, as the dashboard labels show.
+
+Narrow terminals show the most recent weeks first; moving to an older day pans
+the calendar. `PgUp`/`PgDn` scroll the page to the model rankings. Activity levels
+use both color and different glyphs, so the grid is readable without color.
+
+Your personal wallet balance and active package names appear above the metrics.
+Press `a`, or choose **My account** from the home menu, for package details:
+
+- Usage packages show remaining and total credits.
+- Time packages show the periodic allowance, current usage and remaining credits,
+  the current period's end, and the package's expiry when provided by the server.
+- Expired and other inactive packages retain their status and do not appear in
+  the active-package summary.
+
+Wallet balance and package allowances are separate. These screens only read
+data; they do not purchase, renew or recharge anything. Wallet data needs
+`wallet:read`, and usage data needs `usage:read`. An unavailable widget shows
+its own error while the other widgets remain usable. Press `r` to refresh and
+`Esc` to go back.
 
 ## Signing in
 

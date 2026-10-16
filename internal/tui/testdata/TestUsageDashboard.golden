@@ -1,0 +1,32 @@
+  cchp  CCHP from your terminal
+  ● Dana · Acme on https://hub.example.com
+
+  Usage dashboard · Today · UTC
+  My balance 125.5000 credits · Pro monthly, Extra credits · a account
+
+  │ Requests             │ Tokens in / out      │ Cost (credits)       │ Success rate
+  │ 1.3K                 │ 2.6M / 184.0K        │ 12.5000              │ 99.6%
+
+  Activity · Requests · 365 days · UTC
+      Dec     Jan     Feb     Mar       Apr     May       Jun     Jul     Aug       Sep     Oct
+  Mon ▒ ▓ ░ · █ ░ ▓ █ ▒ ▓ ░ ▒ █ ░ · █ ▒ ▓ ░ ▒ ▓ ░ ▒ █ ░ · █ ▒ ▓ ░ ▒ █ ░ ▓ █ ▒ · ░ ▒ ▓ ░ ▒ █ ░ ▓ █
+      ▒ █ ░ ▓ █ ▒ · ░ ▒ ▓ ░ ▒ █ ░ ▓ █ ▒ · ░ ▒ █ ░ ▓ █ ▒ ▓ ░ ▒ · ░ ▒ █ ░ ▓ █ ▒ ▓ ░ ▒ · ░ ▓ █ ▒ ▓ ░
+  Wed ▒ █ ░ ▓ █ ▒ ▓ ░ ▒ · ░ ▓ █ ▒ ▓ ░ ▒ ▓ ░ ▒ · ░ ▓ █ ▒ ▓ ░ ▒ █ ░ ▓ · ▒ ▓ ░ ▒ ▓ ░ ▒ █ ░ ▓ · ▒ ▓ ░
+      ▓ · ▒ ▓ ░ ▒ ▓ ░ ▒ █ ░ ▓ · ▒ ▓ ░ ▒ █ ░ ▓ █ ▒ ▓ · ▒ ▓ ░ ▒ █ ░ ▓ █ ▒ ▓ · ▒ █ ░ ▓ █ ▒ ▓ ░ ▒ ▓ ·
+  Fri · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ◆
+      ▓ ░ ▒ ▓ ░ ▒ █ · ▓ █ ▒ ▓ ░ ▒ █ ░ ▓ █ · ▓ ░ ▒ ▓ ░ ▒ █ ░ ▓ █ · ▓ ░ ▒ █ ░ ▓ █ ▒ ▓ ░ · ▓ ░ ▒ █
+      ▓ ░ ▒ █ ░ ▓ █ ▒ ▓ ░ · ▓ ░ ▒ █ ░ ▓ █ ▒ ▓ ░ · █ ░ ▓ █ ▒ ▓ ░ ▒ ▓ ░ · █ ░ ▓ █ ▒ ▓ ░ ▒ █ ░ · █
+  284 active days · weeks 8–53/53 · Less ·░▒▓█ More · ◆ selected
+  Fri 2026-10-16  1,280 requests
+  2,560,000 in / 184,000 out · 12.5000 credits
+
+  Busiest models · last 7 days
+  Model                     Requests   Tokens              Cost
+  claude-sonnet-4              6,120    12.8M   55.0000 credits
+  fast-model → gpt-5-mini      2,120     4.6M   24.0000 credits
+
+
+
+
+
+  ←/→ week  ↑/↓ day  tab metric  1–3 period  pgup/dn scroll  a account  r reload  esc back

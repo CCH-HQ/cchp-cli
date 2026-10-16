@@ -34,7 +34,7 @@ func plainView(t *testing.T, m tea.Model) []byte {
 	t.Helper()
 	text := ansi.Strip(m.(*Model).View().Content)
 	var lines []string
-	for _, l := range strings.Split(text, "\n") {
+	for l := range strings.SplitSeq(text, "\n") {
 		lines = append(lines, strings.TrimRight(l, " "))
 	}
 	return []byte(strings.Join(lines, "\n") + "\n")

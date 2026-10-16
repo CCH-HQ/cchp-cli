@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
-	"time"
 
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/viewport"
@@ -14,123 +13,7 @@ import (
 	"github.com/charmbracelet/glamour"
 
 	cchpcli "github.com/CCH-HQ/cchp-cli"
-	"github.com/CCH-HQ/cchp-cli/internal/ui"
 )
-
-// usageScreen shows key figures for today, this week and this month, and the
-// busiest models of the last seven days.
-type usageScreen struct {
-	summary map[string]any
-	models  []any
-	pending int
-	err     error
-}
-
-func newUsageScreen() *usageScreen { return &usageScreen{} }
-
-func (s *usageScreen) init(m *Model) tea.Cmd {
-	s.pending = 2
-	start := time.Now().UTC().Add(-7 * 24 * time.Hour).Format(time.RFC3339)
-	return tea.Batch(
-		m.fetch("usage-summary", "getUsageSummary", nil),
-		m.fetch("usage-models", "listUsageByModel", map[string][]string{"start": {start}, "limit": {"8"}}),
-	)
-}
-
-func (s *usageScreen) update(m *Model, msg tea.Msg) tea.Cmd {
-	switch msg := msg.(type) {
-	case fetchedMsg:
-		switch msg.key {
-		case "usage-summary":
-			s.pending--
-			if msg.err != nil {
-				s.err = msg.err
-				return nil
-			}
-			s.summary, _ = msg.doc.(map[string]any)
-		case "usage-models":
-			s.pending--
-			if msg.err != nil {
-				s.err = msg.err
-				return nil
-			}
-			obj, _ := msg.doc.(map[string]any)
-			s.models, _ = obj["items"].([]any)
-		}
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "esc", "q", "backspace":
-			return pop
-		case "r":
-			s.summary, s.models, s.err = nil, nil, nil
-			return s.init(m)
-		}
-	}
-	return nil
-}
-
-func (s *usageScreen) view(m *Model) string {
-	head := "  " + ui.Title.Render("Usage") + "\n\n"
-	if s.err != nil {
-		return head + "  " + strings.ReplaceAll(plainError(s.err), "\n", "\n  ")
-	}
-	if s.pending > 0 {
-		return head + "  " + m.spin.View() + " Loading…"
-	}
-	windows := []struct{ key, title string }{{"today", "Today"}, {"week", "This week"}, {"month", "This month"}}
-	rows := []struct {
-		label string
-		get   func(map[string]any) string
-	}{
-		{"Requests", func(w map[string]any) string { return num(w["requests"]) }},
-		{"Success rate", func(w map[string]any) string { return percent(w["successRate"]) }},
-		{"Tokens in", func(w map[string]any) string { return num(w["inputTokens"]) }},
-		{"Tokens out", func(w map[string]any) string { return num(w["outputTokens"]) }},
-		{"Cost", func(w map[string]any) string { return cost(w["costUnits"]) }},
-	}
-	cols := [][]string{{""}}
-	for _, r := range rows {
-		cols[0] = append(cols[0], r.label)
-	}
-	for _, w := range windows {
-		win, _ := s.summary[w.key].(map[string]any)
-		col := []string{w.title}
-		for _, r := range rows {
-			col = append(col, r.get(win))
-		}
-		cols = append(cols, col)
-	}
-	var b strings.Builder
-	b.WriteString(head)
-	b.WriteString(table(cols, true))
-	b.WriteString("\n\n  " + ui.Title.Render("Busiest models, last 7 days") + "\n\n")
-	if len(s.models) == 0 {
-		b.WriteString("  " + ui.Muted.Render("No requests in the last 7 days."))
-		return b.String()
-	}
-	mcols := [][]string{{"Model"}, {"Requests"}, {"Tokens"}, {"Cost"}}
-	for _, it := range s.models {
-		r, _ := it.(map[string]any)
-		requested, final := str(r, "requestedModel"), str(r, "finalModel")
-		model := requested
-		switch {
-		case requested == "":
-			model = final
-		case final == "":
-			model = requested + ui.Muted.Render(" (not sent to a provider)")
-		case final != requested:
-			model = requested + ui.Muted.Render(" → "+final)
-		}
-		mcols[0] = append(mcols[0], model)
-		mcols[1] = append(mcols[1], num(r["requests"]))
-		mcols[2] = append(mcols[2], num(sum(r["inputTokens"], r["outputTokens"])))
-		mcols[3] = append(mcols[3], cost(r["costUnits"]))
-	}
-	b.WriteString(table(mcols, false))
-	return b.String()
-}
-
-func (s *usageScreen) hints() string { return hints("r", "refresh", "esc", "back") }
 
 // table lays out columns: the first left-aligned, the rest right-aligned, with
 // a bold header row.

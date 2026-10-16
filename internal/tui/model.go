@@ -34,10 +34,11 @@ type (
 		err error
 	}
 	fetchedMsg struct {
-		key string
-		res *contract.Result
-		doc any
-		err error
+		owner screen
+		key   string
+		res   *contract.Result
+		doc   any
+		err   error
 	}
 )
 
@@ -149,13 +150,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.identity, m.checkErr = msg.id, nil
 		}
 		return m, nil
+	case fetchedMsg:
+		for _, target := range m.stack {
+			if target == msg.owner {
+				return m, target.update(m, msg)
+			}
+		}
+		return m, nil
 	case pushMsg:
 		m.stack = append(m.stack, msg.s)
 		return m, msg.s.init(m)
 	case popMsg:
 		if len(m.stack) > 1 {
 			m.stack = m.stack[:len(m.stack)-1]
-			return m, nil
+			return m, m.top().update(m, tea.WindowSizeMsg{Width: m.width, Height: m.height})
 		}
 		return m, tea.Quit
 	}
@@ -173,7 +181,7 @@ func (m *Model) View() tea.View {
 	b.WriteString("\n\n")
 	b.WriteString(m.top().view(m))
 	b.WriteString("\n\n")
-	b.WriteString("  " + m.top().hints())
+	b.WriteString("  " + ui.Wrap(m.top().hints(), maxInt(m.width-4, 12), 0))
 	v := tea.NewView(b.String())
 	v.AltScreen = !m.quitAfterLogin
 	v.WindowTitle = "cchp"
@@ -197,31 +205,32 @@ func (m *Model) header() string {
 	default:
 		status = ui.Muted.Render("Signed in to " + m.server)
 	}
-	return brand + "\n  " + status
+	return ui.Wrap(brand, maxInt(m.width-2, 12), 2) + "\n  " +
+		strings.ReplaceAll(ui.Wrap(status, maxInt(m.width-4, 12), 0), "\n", "\n  ")
 }
 
 // fetch runs one read operation through the runner.
-func (m *Model) fetch(key, opID string, params map[string][]string) tea.Cmd {
+func (m *Model) fetch(owner screen, key, opID string, params map[string][]string) tea.Cmd {
 	r := m.deps.Runner
 	ctx := m.ctx
 	return func() tea.Msg {
 		op, ok := r.Catalog.Get(opID)
 		if !ok {
-			return fetchedMsg{key: key, err: errors.New("unknown operation " + opID)}
+			return fetchedMsg{owner: owner, key: key, err: errors.New("unknown operation " + opID)}
 		}
 		res, err := r.Run(ctx, runner.Options{Op: op, Params: params, Timeout: 30 * time.Second})
 		if err != nil {
-			return fetchedMsg{key: key, err: err}
+			return fetchedMsg{owner: owner, key: key, err: err}
 		}
 		var doc any
 		if len(res.Data) > 0 {
 			dec := json.NewDecoder(strings.NewReader(string(res.Data)))
 			dec.UseNumber()
 			if err := dec.Decode(&doc); err != nil {
-				return fetchedMsg{key: key, err: err}
+				return fetchedMsg{owner: owner, key: key, err: err}
 			}
 		}
-		return fetchedMsg{key: key, res: res, doc: doc}
+		return fetchedMsg{owner: owner, key: key, res: res, doc: doc}
 	}
 }
 

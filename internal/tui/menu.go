@@ -31,11 +31,12 @@ func (s *menuScreen) items(m *Model) []menuItem {
 		return []menuItem{signIn, guides, quit}
 	}
 	items := []menuItem{
-		{"See usage", "Requests, tokens and cost for today, this week and this month", func(m *Model) tea.Cmd { return push(newUsageScreen()) }},
+		{"See usage", "Usage dashboard, daily heatmap and wallet summary", func(m *Model) tea.Cmd { return push(newUsageScreen()) }},
 		{"Providers", "The upstream services your gateway calls", func(m *Model) tea.Cmd { return push(providersScreen()) }},
 		{"Provider keys", "Pick a provider to see its keys", func(m *Model) tea.Cmd { return push(providerKeysPicker()) }},
 		{"LLM tokens", "Keys your apps use to call models", func(m *Model) tea.Cmd { return push(llmTokensScreen()) }},
 		{"Recent requests", "The latest calls through the gateway", func(m *Model) tea.Cmd { return push(requestsScreen()) }},
+		{"My account", "Your wallet balance, packages and remaining allowances", func(m *Model) tea.Cmd { return push(newAccountScreen()) }},
 		guides,
 	}
 	if m.checkErr != nil {
