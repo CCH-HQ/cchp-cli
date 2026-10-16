@@ -1,5 +1,21 @@
 # Install
 
+## Homebrew
+
+On macOS or Linux, with Apple Silicon/ARM64 or Intel/AMD64:
+
+```sh
+brew install cch-hq/tap/cchp
+```
+
+This adds [CCH-HQ's tap](https://github.com/CCH-HQ/homebrew-tap), installs
+the release binary, and sets up Bash, Zsh and Fish completions. To update:
+
+```sh
+brew update
+brew upgrade cchp
+```
+
 ## Install script
 
 ```sh
@@ -70,4 +86,5 @@ cchp completion fish > ~/.config/fish/completions/cchp.fish
 
 ## Uninstall
 
-Run `cchp logout`, then delete the `cchp` binary and the directories above.
+Run `cchp logout`. For Homebrew installs, run `brew uninstall cchp`; otherwise,
+delete the `cchp` binary. Delete the directories above to remove local data.

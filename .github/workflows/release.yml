@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Stable release tag to sync to Homebrew (for example v0.1.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,6 +20,7 @@ concurrency:
 jobs:
   goreleaser:
     name: GoReleaser
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -30,3 +37,66 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew tap
+    needs: goreleaser
+    if: >-
+      always() &&
+      (needs.goreleaser.result == 'success' || github.event_name == 'workflow_dispatch') &&
+      !contains(inputs.tag || github.ref_name, '-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: homebrew-tap
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require Homebrew App credentials
+        env:
+          APP_CLIENT_ID: ${{ vars.HOMEBREW_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.HOMEBREW_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_CLIENT_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo '::error::Set HOMEBREW_APP_CLIENT_ID and HOMEBREW_APP_PRIVATE_KEY for the Homebrew publisher App.'
+            exit 1
+          fi
+      - name: Create tap-scoped installation token
+        id: homebrew-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.HOMEBREW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_APP_PRIVATE_KEY }}
+          owner: CCH-HQ
+          repositories: homebrew-tap
+          permission-contents: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: CCH-HQ/homebrew-tap
+          ref: main
+          path: homebrew-tap
+          token: ${{ steps.homebrew-token.outputs.token }}
+      - name: Verify release assets and generate formula
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: python3 scripts/update-homebrew.py "$RELEASE_TAG" --output homebrew-tap/Formula/cchp.rb
+      - name: Commit and push formula
+        working-directory: homebrew-tap
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          APP_SLUG: ${{ steps.homebrew-token.outputs.app-slug }}
+        run: |
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          git add Formula/cchp.rb
+          if git diff --cached --quiet; then
+            echo 'Homebrew formula is already up to date.'
+            exit 0
+          fi
+          git commit -m "chore: bump cchp to ${RELEASE_TAG}"
+          git push origin HEAD:main

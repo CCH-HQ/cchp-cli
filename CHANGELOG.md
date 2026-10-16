@@ -1,6 +1,14 @@
 # Changelog
 
-## v0.1.0
+## [Unreleased]
+
+### Added
+
+- Homebrew installation through `cch-hq/tap/cchp` for macOS and Linux on
+  amd64 and arm64, including shell completions. Stable releases automatically
+  update the tap after verifying the published archives and checksums.
+
+## [v0.1.0]
 
 First release, built from the CCHP v1.0.6 control-plane spec with embedded
 Restish v2.3.0.
@@ -50,3 +58,6 @@ Restish v2.3.0.
 
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
+
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.0...HEAD
+[v0.1.0]: https://github.com/CCH-HQ/cchp-cli/releases/tag/v0.1.0

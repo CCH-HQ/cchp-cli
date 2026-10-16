@@ -9,6 +9,14 @@ predictable JSON contract.
 
 ## Install
 
+With Homebrew (macOS or Linux):
+
+```sh
+brew install cch-hq/tap/cchp
+```
+
+Or with the install script:
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/CCH-HQ/cchp-cli/main/install.sh | sh
 ```
@@ -49,6 +57,7 @@ secrets also need `--confirm <operationId>`.
 - [Updating the spec](docs/updating-the-spec.md)
 - [How cchp is built](docs/architecture.md)
 - [Changelog](CHANGELOG.md)
+- [Release distribution](docs/releasing.md)
 
 In the terminal: `cchp guide` lists short guides, and every command has `--help`.
 
