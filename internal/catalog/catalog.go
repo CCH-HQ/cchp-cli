@@ -119,6 +119,10 @@ type Policy struct {
 	SecretFields []string    `json:"secret_fields,omitempty"`
 	Pagination   *Pagination `json:"pagination,omitempty"`
 	Note         string      `json:"note,omitempty"`
+	// Listing names the operation that lists a download's parts with their sizes
+	// (same path parameters except the last, which names the part). An empty
+	// download of a part it lists as not empty is a failure.
+	Listing string `json:"listing,omitempty"`
 }
 
 // SecretOutput reports whether the operation returns a one-time secret that

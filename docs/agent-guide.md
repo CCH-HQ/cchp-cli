@@ -79,7 +79,8 @@ cchp api listUsageLogs --page-limit 10 --max-items 500 --json   # several pages
 
 - Streams print NDJSON event lines, then the result object. Agent mode stops
   after 20 events unless `--max-events N` says otherwise, or at `--timeout`.
-- Operations that return files need `--output <new file>` (`-` for stdout).
+- Operations that return files need `--output <new file>` (`-` for stdout). The
+  file holds the response body byte for byte, whatever its Content-Type.
 
 ## Failures
 
