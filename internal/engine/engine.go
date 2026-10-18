@@ -4,7 +4,8 @@
 // sends the HTTP request from the pinned engine spec. The two meet only through
 // Restish's supported embedding interfaces: a branded CLI with bundled config,
 // a custom auth handler, a JSON content type that sends bodies byte for byte, a
-// capture formatter, and the standard library transport Restish clones.
+// capture formatter, Restish's raw body output for downloads, and the process
+// HTTP transport, which guards every request and records each response head.
 package engine
 
 import (
@@ -18,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -76,6 +78,9 @@ type Request struct {
 	MaxEvents int
 	// OnEvent receives stream events; returning an error stops the stream.
 	OnEvent func(Event) error
+	// RawBody returns the response body byte for byte whatever its Content-Type,
+	// server-sent events and NDJSON included; downloads use it.
+	RawBody bool
 	// DryRun builds the request without sending it.
 	DryRun bool
 }
@@ -133,13 +138,30 @@ var guard = &transportGuard{}
 func init() {
 	base := http.DefaultTransport.(*http.Transport).Clone()
 	base.Proxy = guard.proxy
-	http.DefaultTransport = base
+	http.DefaultTransport = &headTransport{base: base}
+}
+
+// headTransport is the process HTTP transport Restish sends through. It hands
+// every request to the guarded standard library transport and records the head
+// of each response of an engine run; the last one is the response Restish read.
+type headTransport struct {
+	base *http.Transport
+}
+
+func (t *headTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.base.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	guard.recordHead(resp)
+	return resp, nil
 }
 
 // transportGuard sees every outgoing request, including redirect hops, through
-// the Proxy hook of the transport Restish clones. During an engine run it
-// refuses to carry credentials to any origin other than the bound one, captures
-// dry runs, and stops a run whose caller has given up from sending anything more.
+// the Proxy hook of the process transport. During an engine run it refuses to
+// carry credentials to any origin other than the bound one, captures dry runs,
+// stops a run whose caller has given up from sending anything more, and keeps
+// the head of the last response.
 type transportGuard struct {
 	mu      sync.Mutex
 	origin  *url.URL
@@ -155,6 +177,22 @@ type runState struct {
 	// abandoned is set when the caller's deadline passed before anything was
 	// sent; the guard then refuses every request of this run.
 	abandoned bool
+	// head is the status and headers of the last response of this run.
+	head *responseHead
+}
+
+// responseHead is the status line and headers of one response.
+type responseHead struct {
+	status int
+	header http.Header
+}
+
+func (g *transportGuard) recordHead(resp *http.Response) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.run != nil {
+		g.run.head = &responseHead{status: resp.StatusCode, header: resp.Header.Clone()}
+	}
 }
 
 func (g *transportGuard) arm(origin *url.URL, dryRun bool, run *runState) {
@@ -368,7 +406,7 @@ func (e *Engine) run(ctx context.Context, req Request) (*Result, *PlannedRequest
 		runErr := cli.Run(args)
 
 		guard.mu.Lock()
-		planned, sent := guard.planned, state.sent
+		planned, sent, head := guard.planned, state.sent, state.head
 		guard.origin, guard.dryRun, guard.planned, guard.run = nil, false, nil, nil
 		guard.mu.Unlock()
 		if req.DryRun {
@@ -386,7 +424,13 @@ func (e *Engine) run(ctx context.Context, req Request) (*Result, *PlannedRequest
 			done <- outcome{sent: sent, err: classify(runErr, sent, stderr.String())}
 			return
 		}
-		res, err := result(&stdout, capture)
+		var res *Result
+		var err error
+		if req.RawBody {
+			res, err = rawResult(&stdout, head)
+		} else {
+			res, err = result(&stdout, capture)
+		}
 		if res != nil {
 			res.Diagnostics = strings.TrimSpace(stderr.String())
 		}
@@ -445,6 +489,25 @@ func result(stdout *bytes.Buffer, capture *captureFormatter) (*Result, error) {
 	return res, nil
 }
 
+// rawResult builds the result of a raw body run: Restish wrote the response
+// body to stdout byte for byte (content encodings decoded), and the transport
+// recorded the head of the response it read. An error response with a JSON
+// body is also decoded, as the problem cchp reports.
+func rawResult(stdout *bytes.Buffer, head *responseHead) (*Result, error) {
+	if head == nil {
+		return nil, errNoEngine
+	}
+	res := &Result{Status: head.status, Header: head.header, Raw: bytes.Clone(stdout.Bytes())}
+	if head.status >= http.StatusMultipleChoices && len(res.Raw) > 0 {
+		if media, _, err := mime.ParseMediaType(head.header.Get("Content-Type")); err == nil && (media == "application/json" || strings.HasSuffix(media, "+json")) {
+			if body, err := DecodeJSON(res.Raw); err == nil {
+				res.Body = body
+			}
+		}
+	}
+	return res, nil
+}
+
 // materialiseSpec writes the embedded engine spec once per content hash so
 // Restish can load and cache it like any local spec file. It also creates the
 // engine's private, empty Restish config file: cchp passes it explicitly, which
@@ -490,8 +553,14 @@ func (e *Engine) materialiseSpec() (string, error) {
 
 func (e *Engine) argv(req Request) ([]string, io.Reader, func(), error) {
 	cleanup := func() {}
-	args := []string{"cchp", "--rsh-config", filepath.Join(e.StateDir, "restish.json"), req.Op.ID,
-		"-o", "cchp", "--rsh-print", "hb", "--rsh-ignore-status-code", "--rsh-no-paginate", "--rsh-no-cache"}
+	args := []string{"cchp", "--rsh-config", filepath.Join(e.StateDir, "restish.json"), req.Op.ID}
+	if !req.RawBody {
+		// The capture formatter receives the response; Restish prints its head.
+		args = append(args, "-o", "cchp", "--rsh-print", "hb")
+	}
+	// Without an output format Restish writes the body to its non-terminal
+	// stdout byte for byte, for every Content-Type.
+	args = append(args, "--rsh-ignore-status-code", "--rsh-no-paginate", "--rsh-no-cache")
 	if req.Retry && !req.DryRun {
 		args = append(args, "--rsh-retry", "2")
 	} else {
@@ -503,7 +572,7 @@ func (e *Engine) argv(req Request) ([]string, io.Reader, func(), error) {
 	if req.MaxBodyMiB > 0 {
 		args = append(args, "--rsh-max-body-size", strconv.Itoa(req.MaxBodyMiB))
 	}
-	if req.MaxEvents > 0 {
+	if req.MaxEvents > 0 && !req.RawBody {
 		args = append(args, "--rsh-max-items", strconv.Itoa(req.MaxEvents))
 	}
 	for _, h := range req.Headers {

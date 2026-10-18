@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Downloads save the response body byte for byte whatever its Content-Type.
+  `cchp requests download-part` saved request archive parts served as
+  `text/event-stream` (response frames) or NDJSON as empty files and reported
+  `ok: true`; it now saves every part exactly as `curl` receives it, and the
+  reported `bytes` and `sha256` describe the saved file.
+- A download that arrives empty while the request archive lists the part as
+  not empty fails with `server_error` (exit 10) instead of reporting success.
+- `cchp requests download-bundle` is a download: it needs `--output` and saves
+  the bundle's bytes instead of printing them as data.
+
 ## [v0.1.1] - 2026-10-16
 
 ### Added

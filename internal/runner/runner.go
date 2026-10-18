@@ -15,6 +15,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -227,7 +228,8 @@ func (r *Runner) Run(ctx context.Context, o Options) (*contract.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	req := engine.Request{Op: op, Retry: op.Policy.Retry, HeaderTimeout: o.Timeout, MaxEvents: o.MaxEvents, DryRun: o.DryRun}
+	req := engine.Request{Op: op, Retry: op.Policy.Retry, HeaderTimeout: o.Timeout, MaxEvents: o.MaxEvents, DryRun: o.DryRun,
+		RawBody: op.Response.Kind == catalog.ResponseBinary}
 	if err := r.prepareBody(&req, o); err != nil {
 		return nil, err
 	}
@@ -284,7 +286,56 @@ func (r *Runner) Run(ctx context.Context, o Options) (*contract.Result, error) {
 		return nil, transportFailure(op, err, idemKey)
 	}
 	r.trace(op, res)
-	return r.finish(op, res, o, result)
+	out, err := r.finish(op, res, o, result)
+	if err != nil {
+		return nil, err
+	}
+	if out.File != nil && out.File.Bytes == 0 && op.Policy.Listing != "" {
+		if err := r.checkListedEmpty(ctx, eng, op, req); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// checkListedEmpty reads the listing of an empty download and fails when it
+// shows the part as not empty: the server sent fewer bytes than it holds. The
+// part is the last path argument (URL-encoded, as the download takes it); the
+// listing takes the path arguments before it and lists parts[] by name and size.
+func (r *Runner) checkListedEmpty(ctx context.Context, eng *engine.Engine, op *catalog.Operation, req engine.Request) error {
+	listOp, ok := r.Catalog.Get(op.Policy.Listing)
+	if !ok {
+		return fmt.Errorf("catalog has no %s", op.Policy.Listing)
+	}
+	partArg := req.PathArgs[len(req.PathArgs)-1]
+	part, err := url.PathUnescape(partArg)
+	if err != nil {
+		return contract.Fail(contract.KindInvalidInput, contract.ExitInvalid, "the part name %q is not URL-encoded correctly: %v", partArg, err)
+	}
+	res, err := eng.Do(ctx, engine.Request{Op: listOp, PathArgs: req.PathArgs[:len(req.PathArgs)-1], Retry: listOp.Policy.Retry, HeaderTimeout: req.HeaderTimeout})
+	if err != nil {
+		return transportFailure(listOp, err, "")
+	}
+	if res.Status != http.StatusOK {
+		return httpFailure(listOp, res)
+	}
+	var listing struct {
+		Parts []struct {
+			Name string `json:"name"`
+			Size int64  `json:"size"`
+		} `json:"parts"`
+	}
+	if err := json.Unmarshal(res.Raw, &listing); err != nil {
+		return fmt.Errorf("reading %s: %w", listOp.ID, err)
+	}
+	for _, p := range listing.Parts {
+		if p.Name == part && p.Size > 0 {
+			return contract.Fail(contract.KindServer, contract.ExitServer,
+				"the server sent an empty file for %s, which the archive lists as %d bytes", part, p.Size).
+				WithHint("The saved file is empty and incomplete; delete it and run the download again.")
+		}
+	}
+	return nil
 }
 
 func (r *Runner) trace(op *catalog.Operation, res *engine.Result) {

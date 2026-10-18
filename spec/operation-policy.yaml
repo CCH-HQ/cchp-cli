@@ -8,6 +8,9 @@
 # secret_fields: response fields that hold a one-time secret; the caller must
 #   name a destination with --secret-out and the value never reaches stdout.
 # pagination: how to walk pages (style cursor or page).
+# listing: for a download, the operation that lists its parts with their sizes
+#   (same path parameters except the last, which names the part); an empty
+#   download of a part the listing shows as not empty fails.
 version: 1
 defaults:
   risk: write
@@ -274,7 +277,7 @@ operations:
   getUsageLog: {risk: read, retry: true, permission: "usage:read"}
   getUsageLogArchive: {risk: read, retry: true, permission: "request_archive:read"}
   getUsageLogArchiveContext: {risk: read, retry: true, permission: "request_archive:read"}
-  getUsageLogArchiveRaw: {risk: read, retry: true, permission: "request_archive:export"}
+  getUsageLogArchiveRaw: {risk: read, retry: true, permission: "request_archive:export", listing: getUsageLogArchive}
   getUsageModelShare: {risk: read, retry: true, permission: "usage:read"}
   getUsageProviderHealth: {risk: read, retry: true, permission: "usage:read"}
   getUsageRank: {risk: read, retry: true, permission: "usage:read"}

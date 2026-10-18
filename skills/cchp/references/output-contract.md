@@ -52,7 +52,10 @@ otherwise, or at `--timeout`.
 ## Downloads
 
 Operations that return files need `--output <new file>` (`-` writes to stdout).
-cchp refuses to replace an existing file.
+cchp refuses to replace an existing file. The file holds the response body byte
+for byte whatever its Content-Type (server-sent events and NDJSON included), and
+`file.bytes` and `file.sha256` describe it. A request archive part that arrives
+empty although the archive lists it as not empty fails with `server_error`.
 
 ## Exit codes
 

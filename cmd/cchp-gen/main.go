@@ -228,6 +228,7 @@ type policyEntry struct {
 	SecretFields []string            `yaml:"secret_fields"`
 	Pagination   *catalog.Pagination `yaml:"pagination"`
 	Note         string              `yaml:"note"`
+	Listing      string              `yaml:"listing"`
 }
 
 func generate(workdir string) (map[string][]byte, error) {
@@ -520,12 +521,15 @@ func (g *generator) operation(method, path string, node map[string]any, pathPara
 	if classified {
 		op.Policy = catalog.Policy{
 			Risk: pe.Risk, Classified: true, Retry: pe.Retry, Permission: pe.Permission,
-			SecretFields: pe.SecretFields, Pagination: pe.Pagination, Note: pe.Note,
+			SecretFields: pe.SecretFields, Pagination: pe.Pagination, Note: pe.Note, Listing: pe.Listing,
 		}
 		switch pe.Risk {
 		case catalog.RiskRead, catalog.RiskWrite, catalog.RiskDestructive:
 		default:
 			errs = append(errs, fmt.Sprintf("policy risk %q is not read, write or destructive", pe.Risk))
+		}
+		if pe.Listing != "" && op.Response.Kind != catalog.ResponseBinary {
+			errs = append(errs, "only downloads have a listing")
 		}
 		if pe.Retry && op.Method != "GET" && pe.Risk != catalog.RiskRead {
 			errs = append(errs, "only reads may be retried automatically")
@@ -660,10 +664,16 @@ func requestBody(node map[string]any) *catalog.Body {
 	return b
 }
 
+// responseInfo classifies an operation's success response. A response whose
+// schema is a binary string is a download whatever its media types (a file can
+// be served as text/event-stream or application/x-ndjson); otherwise
+// text/event-stream makes a stream, JSON media types make JSON and anything
+// else is a download.
 func responseInfo(node map[string]any) catalog.Response {
 	responses, _ := node["responses"].(map[string]any)
 	seen := map[string]bool{}
 	var cts []string
+	file := false
 	for _, code := range sortedKeys(responses) {
 		if !strings.HasPrefix(code, "2") {
 			continue
@@ -671,6 +681,11 @@ func responseInfo(node map[string]any) catalog.Response {
 		resp, _ := responses[code].(map[string]any)
 		content, _ := resp["content"].(map[string]any)
 		for _, ct := range sortedKeys(content) {
+			media, _ := content[ct].(map[string]any)
+			schema, _ := media["schema"].(map[string]any)
+			if str(schema["type"]) == "string" && str(schema["format"]) == "binary" {
+				file = true
+			}
 			if !seen[ct] {
 				seen[ct] = true
 				cts = append(cts, ct)
@@ -678,6 +693,10 @@ func responseInfo(node map[string]any) catalog.Response {
 		}
 	}
 	r := catalog.Response{Kind: catalog.ResponseEmpty, ContentTypes: cts}
+	if file {
+		r.Kind = catalog.ResponseBinary
+		return r
+	}
 	for _, ct := range cts {
 		switch {
 		case ct == "text/event-stream":
