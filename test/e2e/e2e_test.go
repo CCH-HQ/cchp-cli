@@ -253,7 +253,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	}
 	r = cchp(t, env, "", "version", "--json")
 	expectOK(t, r)
-	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.6"`) {
+	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.10"`) {
 		t.Fatalf("version %s", r.res.Data)
 	}
 	expectFail(t, cchp(t, env, "", "api", "noSuchOperation", "--json"), 2, "usage")
@@ -315,7 +315,7 @@ func TestMutationNeedsAllowWriteAndBodiesArriveExactly(t *testing.T) {
 
 func TestPagination(t *testing.T) {
 	s := newSession(t)
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 4; i++ {
 		createProvider(t, s, fmt.Sprintf("Page %d %d", i, time.Now().UnixNano()))
 	}
 	r := s.run(t, "", "api", "listOrgProviders", "--limit", "2")

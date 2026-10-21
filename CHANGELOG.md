@@ -2,17 +2,99 @@
 
 ## [Unreleased]
 
+## [v0.1.2] - 2026-10-21
+
+Built from the CCHP v1.0.10 control-plane spec with embedded Restish v2.3.0.
+
+### Added
+
+- Commands for the operations CCHP v1.0.10 added
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)):
+  - content moderation: `cchp safety moderation-events`, `moderation-event`,
+    `moderation-event-stats`, `moderation-summary`, `moderation-sanctions` and
+    `lift-moderation-sanction`;
+  - postpaid billing: `cchp billing org-billing`, `member-overdraft-limit`,
+    `set-member-overdraft-limit`, `team-overdraft-limit` and
+    `set-team-overdraft-limit`, and for platform administrators
+    `cchp admin org-billing` and `set-org-billing`;
+  - promotional grant adjustments: `cchp billing grant-adjustments`,
+    `grant-adjustment`, `grant-adjustment-items`, `member-grants`,
+    `compensation-plans`, `grant-adjustment-subjects`,
+    `preview-grant-adjustment`, `create-grant-adjustment` and
+    `retry-grant-adjustment`;
+  - `cchp billing renew-plan`, and `cchp account inviter`, `bind-inviter` and
+    `unbind-inviter`;
+  - `cchp llm-tokens disable`, `enable`, `disable-member-key` and
+    `enable-member-key`;
+  - `cchp org member-tags`, `member-account` and `notification-categories`, and
+    `cchp admin member-tags` and `teams`;
+  - `cchp operations redeem-codes`, `redeem-code-batch`,
+    `update-redeem-code-batch` and `update-redeem-code`;
+  - `cchp plugins upstream-bindings`, `create-upstream-binding`,
+    `update-upstream-binding`, `override-upstream-guard` and
+    `rotate-upstream-webhook-secret`;
+  - `cchp providers group-key-scheduling` and `save-split-endpoints`, and
+    `cchp keys task-callbacks`, `update-task-callbacks` and
+    `preview-draft-model-sync`;
+  - `cchp tasks webhook-secret`, `reveal-webhook-secret` and
+    `rotate-webhook-secret`.
+- Flags for the parameters CCHP v1.0.10 added to existing operations, such as
+  search, filter and sort flags on `cchp org members`, `cchp org teams`,
+  `cchp llm-tokens list`, `cchp requests list` and `cchp usage leaderboard`,
+  and `--started-at` on `cchp requests get`, `attempts`, `archive`, `context`,
+  `download-part` and `bundle-link`
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
+- `cchp org members`, `cchp org invitations`, `cchp llm-tokens list`,
+  `cchp llm-tokens member-keys` and `cchp billing referrals` report pagination
+  and follow `--page-limit` and `--max-items`
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
+
+### Changed
+
+- `cchp org members`, `cchp org invitations` and `cchp billing referrals`
+  return the first page of 20 entries unless `--page-size` or `--limit` asks
+  for another size, because CCHP v1.0.10 pages them
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
+- `cchp llm-tokens list` and `cchp llm-tokens member-keys` leave revoked keys
+  out unless `--status revoked` or `--status all` asks for them, as CCHP
+  v1.0.10 does ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
+- `cchp providers overview` calls the operation by its CCHP v1.0.10 ID:
+  `cchp api listProviders` is now `cchp api listAdminProviders`
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
+
+### Removed
+
+- `cchp safety violations` and `cchp safety watch-violations`, together with
+  the moderation violation list and stream that CCHP v1.0.10 removed;
+  `cchp safety moderation-events` lists moderation events instead
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
+
 ### Fixed
 
 - Downloads save the response body byte for byte whatever its Content-Type.
   `cchp requests download-part` saved request archive parts served as
   `text/event-stream` (response frames) or NDJSON as empty files and reported
   `ok: true`; it now saves every part exactly as `curl` receives it, and the
-  reported `bytes` and `sha256` describe the saved file.
+  reported `bytes` and `sha256` describe the saved file
+  ([#5](https://github.com/CCH-HQ/cchp-cli/pull/5)).
 - A download that arrives empty while the request archive lists the part as
-  not empty fails with `server_error` (exit 10) instead of reporting success.
+  not empty fails with `server_error` (exit 10) instead of reporting success
+  ([#5](https://github.com/CCH-HQ/cchp-cli/pull/5)).
 - `cchp requests download-bundle` is a download: it needs `--output` and saves
-  the bundle's bytes instead of printing them as data.
+  the bundle's bytes instead of printing them as data
+  ([#5](https://github.com/CCH-HQ/cchp-cli/pull/5)).
+
+### Spec and coverage
+
+- The pinned spec is CCHP v1.0.10 (`b0bf159de`): 621 operations, 514
+  available, 107 excluded with reasons, 0 unsupported. See
+  [docs/coverage.md](docs/coverage.md)
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
+- Nine of the new operations are excluded with reasons: your moderation
+  cooldown and personal notifications, setting a member's email or temporary
+  password, the WeChat in-app payment step, and three user administration
+  operations that accept only a browser session
+  ([#6](https://github.com/CCH-HQ/cchp-cli/pull/6)).
 
 ## [v0.1.1] - 2026-10-16
 
@@ -87,6 +169,7 @@ Restish v2.3.0.
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
 
-[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.2...HEAD
+[v0.1.2]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/CCH-HQ/cchp-cli/releases/tag/v0.1.0

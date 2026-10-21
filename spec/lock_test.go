@@ -88,8 +88,8 @@ func TestEmbeddedCatalogComesFromTheLockedSpec(t *testing.T) {
 
 func TestEveryOperationHasAnExplainedOutcome(t *testing.T) {
 	c := assets.Catalog()
-	if len(c.Operations) != 562 {
-		t.Fatalf("catalog has %d operations; the v1.0.6 spec has 562", len(c.Operations))
+	if len(c.Operations) != 621 {
+		t.Fatalf("catalog has %d operations; the v1.0.10 spec has 621", len(c.Operations))
 	}
 	for _, op := range c.Operations {
 		switch op.Status {
