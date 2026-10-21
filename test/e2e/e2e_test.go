@@ -253,7 +253,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	}
 	r = cchp(t, env, "", "version", "--json")
 	expectOK(t, r)
-	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.6"`) {
+	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.10"`) {
 		t.Fatalf("version %s", r.res.Data)
 	}
 	expectFail(t, cchp(t, env, "", "api", "noSuchOperation", "--json"), 2, "usage")
