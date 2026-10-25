@@ -63,6 +63,20 @@ func TestTUISignInAndBrowse(t *testing.T) {
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	waitText(t, tm, "items")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	// Provider keys: pick the first provider and see its keys, read a page at a time.
+	waitText(t, tm, "The upstream services your gateway calls")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	waitText(t, tm, "items")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		out := ansi.Strip(string(b))
+		i := strings.LastIndex(out, "Keys of ")
+		return i >= 0 && (strings.Contains(out[i:], "item") || strings.Contains(out[i:], "This provider has no keys yet."))
+	}, teatest.WithDuration(30*time.Second), teatest.WithCheckInterval(50*time.Millisecond))
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(10*time.Second))
 }

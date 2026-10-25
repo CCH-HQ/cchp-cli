@@ -150,9 +150,11 @@ func (s *session) selectOrganization() error {
 }
 
 // finishSetup walks the remaining installation steps: optional steps are
-// skipped, the first organization is created, and the installation completed.
+// skipped, and creating the first organization completes the installation once
+// the server has created it.
 func (s *session) finishSetup() error {
-	for range 20 {
+	orgRequested := false
+	for range 120 {
 		var status struct {
 			Step      string `json:"step"`
 			Completed bool   `json:"completed"`
@@ -167,15 +169,18 @@ func (s *session) finishSetup() error {
 		switch status.Step {
 		case "mfa", "email", "database":
 			err = s.call(http.MethodPost, "/api/setup/progress", map[string]any{"step": status.Step, "skipped": true}, idempotency(), nil)
-		case "login_methods", "pricing":
+		case "login_methods":
 			err = s.call(http.MethodPost, "/api/setup/progress", map[string]any{"step": status.Step, "skipped": false}, idempotency(), nil)
 		case "organization":
+			if orgRequested {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
 			err = s.call(http.MethodPost, "/api/setup/create-org", map[string]any{"orgName": "E2E Org", "teamName": "E2E Team"}, idempotency(), nil)
 			if err == nil {
+				orgRequested = true
 				err = s.refreshSessionCSRF()
 			}
-		case "provider", "completed":
-			err = s.call(http.MethodPost, "/api/setup/complete", nil, idempotency(), nil)
 		default:
 			err = fmt.Errorf("unexpected setup step %q", status.Step)
 		}

@@ -2,6 +2,101 @@
 
 ## [Unreleased]
 
+## [v0.1.3] - 2026-10-25
+
+Built from the CCHP v1.0.12 control-plane spec with embedded Restish v2.3.0.
+
+### Added
+
+- Commands for the operations CCHP v1.0.12 added
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)):
+  - request and response overrides, in the new `cchp overrides` group: `rules`,
+    `save`, `set-rule`, `apply-preset`, `validate`, `catalog`, `revisions`,
+    `revision` and `restore-revision`, and for an LLM token's own rules
+    `llm-token-rules`, `save-llm-token-rules` and `validate-llm-token-rules`;
+  - member billing: `cchp billing member-billing`, `member-billing-actions`,
+    `member-plans`, `member-quota`, `adjust-member-balance`,
+    `adjust-member-quota`, `revoke-member-plan` and `redeem-for-member`, each
+    change with a preview command (`preview-member-balance-adjustment`,
+    `preview-member-quota-adjustment`, `preview-revoke-member-plan`,
+    `preview-redeem-for-member`);
+  - provider keys: `cchp keys get`, `get-many`, `summary`, `revoked`,
+    `provider-totals`, `new-key-ratio-defaults`, `reorder` and `undo-reorder`,
+    and bulk jobs over every key that matches a filter: `start-bulk-job`,
+    `bulk-jobs`, `bulk-job` and `cancel-bulk-job`;
+  - provider groups and routing: `cchp providers group-model-rules`,
+    `set-group-model-rules`, `reset-group-model-rules`, `group-member-models`,
+    `counts` and `preview-route`;
+  - model aliases: `cchp models aliases`, `create-alias` and `delete-alias`;
+  - invite code join requests: `cchp org join-requests`,
+    `approve-join-request` and `reject-join-request`, and
+    `cchp org mail-readiness`;
+  - quotas and usage: `cchp billing quota-pools` and `quota-status`,
+    `cchp usage view-settings` and `cchp requests get-own`;
+  - platform administration: `cchp admin feature-flags`, `set-feature-flag`,
+    `blocked-ips`, `unblock-ip`, `usage-dead-letters`, `usage-dead-letter`,
+    `replay-usage-dead-letter`, `discard-usage-dead-letter`,
+    `request-body-budget`, `mail-readiness`, `preview-mail-template`,
+    `set-cron-schedule` and `backfill-archive-destination`;
+  - `cchp account feature-flags` and
+    `cchp plugins clear-upstream-guard-override`.
+- Flags for the parameters CCHP v1.0.12 added to existing operations:
+  `--archived` and `--batch-id` on `cchp requests list` and `export`,
+  `--cost-basis`, `--scope-type` and `--scope-id` on `cchp usage leaderboard`,
+  `--scope` on `cchp models list`, `--q`, `--ids`, `--limit` and `--cursor` on
+  `cchp providers groups`, and `--key-ids` on `cchp keys check-results`
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+- `cchp keys list`, `cchp keys revoked`, `cchp providers groups`,
+  `cchp providers group-member-models` and
+  `cchp billing member-billing-actions` report pagination and follow
+  `--page-limit` and `--max-items`
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+
+### Changed
+
+- `cchp keys list` lists the organization's provider keys a page at a time,
+  filtered by provider, group, state or search text, because CCHP v1.0.12
+  removed the list of all keys of one provider. Name the provider with
+  `--provider-id <provider-id>`; it was a positional argument.
+  `cchp api listProviderKeys` is now `cchp api listProviderKeyPage`, and the
+  home screen's provider keys list reads its first 100 keys of the provider
+  through it ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+
+### Removed
+
+- `cchp safety request-filters`, `save-request-filters` and
+  `test-request-filter`, together with the request filter operations that
+  CCHP v1.0.12 replaced with request and response overrides: use
+  `cchp overrides rules`, `save` and `validate`
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+- `cchp providers model-redirects`, `create-model-redirect`,
+  `update-model-redirect` and `delete-model-redirect`, together with the model
+  redirect operations CCHP v1.0.12 removed. Model redirects are override rules
+  now: `cchp overrides apply-preset` with the `model_redirect` preset adds one,
+  `cchp overrides rules --scope provider:<provider-id>` lists them, and
+  `cchp overrides save` and `set-rule` change or remove them
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+
+### Fixed
+
+- Permission errors name the permission the server checks for the member LLM
+  key commands (`member_llm_key:read`, `create`, `update`, `rotate` and
+  `revoke`), pausing, resuming and cancelling a repricing job
+  (`billing:reprice`) and the usage breakdowns `cchp usage by-*`
+  (`usage:read`) ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+
+### Spec and coverage
+
+- The pinned spec is CCHP v1.0.12 (`2a00e7460`): 681 operations, 575
+  available, 106 excluded with reasons, 0 unsupported. See
+  [docs/coverage.md](docs/coverage.md)
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+- One new operation is excluded with its reason: listing your own requests to
+  join with invite codes, which the server accepts only from a signed-in
+  browser session. CCHP v1.0.12 also removed two installation steps cchp
+  already excluded, `completeSetup` and `createSetupProvider`
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+
 ## [v0.1.2] - 2026-10-21
 
 Built from the CCHP v1.0.10 control-plane spec with embedded Restish v2.3.0.
@@ -169,7 +264,8 @@ Restish v2.3.0.
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
 
-[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.3...HEAD
+[v0.1.3]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/CCH-HQ/cchp-cli/releases/tag/v0.1.0

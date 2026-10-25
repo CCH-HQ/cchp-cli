@@ -226,7 +226,7 @@ func TestEnvironmentCredentials(t *testing.T) {
 func TestDiscoveryWorksOffline(t *testing.T) {
 	dir := t.TempDir()
 	env := []string{"CCHP_CONFIG_DIR=" + dir, "CCHP_CACHE_DIR=" + dir, "CCHP_BASE_URL=", "CCHP_TOKEN=", "CCHP_TOKEN_FILE="}
-	r := cchp(t, env, "", "commands", "--search", "provider keys", "--json")
+	r := cchp(t, env, "", "commands", "--search", "usage summary", "--json")
 	expectOK(t, r)
 	var list struct {
 		Count    int `json:"count"`
@@ -238,7 +238,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	if err := json.Unmarshal(r.res.Data, &list); err != nil {
 		t.Fatal(err)
 	}
-	if list.Count == 0 || list.Commands[0].Operation != "listProviderKeys" || list.Commands[0].Command != "cchp keys list" {
+	if list.Count == 0 || list.Commands[0].Operation != "getUsageSummary" || list.Commands[0].Command != "cchp usage summary" {
 		t.Fatalf("search %+v", list)
 	}
 	r = cchp(t, env, "", "schema", "createAPIKey", "--json")
@@ -253,7 +253,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	}
 	r = cchp(t, env, "", "version", "--json")
 	expectOK(t, r)
-	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.10"`) {
+	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.12"`) {
 		t.Fatalf("version %s", r.res.Data)
 	}
 	expectFail(t, cchp(t, env, "", "api", "noSuchOperation", "--json"), 2, "usage")
@@ -338,6 +338,69 @@ func TestPagination(t *testing.T) {
 	expectOK(t, some)
 	if some.res.Pagination.Items != 3 || !some.res.Pagination.HasMore {
 		t.Fatalf("max items %+v", some.res.Pagination)
+	}
+}
+
+func createProviderKey(t *testing.T, s *session, providerID, name string) string {
+	t.Helper()
+	body := `{"name":"` + name + `","api_key":"sk-e2e-` + fmt.Sprint(time.Now().UnixNano()) + `","model_whitelist":[{"match_type":"regex","pattern":"gpt-.*"}]}`
+	r := s.run(t, body, "keys", "create", providerID, "--body-file", "-", "--allow-write")
+	expectOK(t, r)
+	var out struct {
+		Key struct {
+			ID string `json:"id"`
+		} `json:"key"`
+	}
+	if err := json.Unmarshal(r.res.Data, &out); err != nil {
+		t.Fatal(err)
+	}
+	return out.Key.ID
+}
+
+func TestProviderKeysListPagesByProvider(t *testing.T) {
+	s := newSession(t)
+	provider := createProvider(t, s, fmt.Sprintf("Keys %d", time.Now().UnixNano()))
+	want := map[string]bool{}
+	for i := 0; i < 3; i++ {
+		want[createProviderKey(t, s, provider, fmt.Sprintf("key-%d", i))] = true
+	}
+	type page struct {
+		Keys []struct {
+			ID         string `json:"id"`
+			ProviderID string `json:"provider_id"`
+		} `json:"keys"`
+	}
+	first := s.run(t, "", "keys", "list", "--provider-id", provider, "--limit", "2")
+	expectOK(t, first)
+	if first.res.Operation != "listProviderKeyPage" {
+		t.Fatalf("operation %s", first.res.Operation)
+	}
+	p := first.res.Pagination
+	if p == nil || p.Items != 2 || !p.HasMore || p.NextCursor == "" {
+		t.Fatalf("first page %+v", p)
+	}
+	rest := s.run(t, "", "keys", "list", "--provider-id", provider, "--limit", "2", "--after", p.NextCursor)
+	expectOK(t, rest)
+	if rest.res.Pagination.Items != 1 || rest.res.Pagination.HasMore {
+		t.Fatalf("second page %+v", rest.res.Pagination)
+	}
+	all := s.run(t, "", "keys", "list", "--provider-id", provider, "--limit", "2", "--page-limit", "10")
+	expectOK(t, all)
+	if all.res.Pagination.Pages != 2 || all.res.Pagination.Items != 3 || all.res.Pagination.HasMore {
+		t.Fatalf("all pages %+v", all.res.Pagination)
+	}
+	var got page
+	if err := json.Unmarshal(all.res.Data, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range got.Keys {
+		if k.ProviderID != provider || !want[k.ID] {
+			t.Fatalf("key %+v is not one of the provider's keys", k)
+		}
+		delete(want, k.ID)
+	}
+	if len(want) != 0 {
+		t.Fatalf("keys missing from the list: %v", want)
 	}
 }
 

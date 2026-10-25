@@ -11,7 +11,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
+	"github.com/CCH-HQ/cchp-cli/internal/assets"
 	"github.com/CCH-HQ/cchp-cli/internal/auth"
+	"github.com/CCH-HQ/cchp-cli/internal/catalog"
 	"github.com/CCH-HQ/cchp-cli/internal/runner"
 )
 
@@ -113,5 +115,25 @@ func TestLabelsAndValues(t *testing.T) {
 	}
 	if got := groupDigits("1234567"); got != "1,234,567" {
 		t.Errorf("groupDigits = %q", got)
+	}
+}
+
+// The list screens call operations by ID with fixed flags, so a spec update that
+// renames or removes one fails here.
+func TestListScreensUseAvailableOperationsAndFlags(t *testing.T) {
+	cat := assets.Catalog()
+	screens := []screen{providersScreen(), providerKeysPicker(), providerKeysScreen("p1", "Provider"), llmTokensScreen(), requestsScreen()}
+	for _, sc := range screens {
+		spec := sc.(*listScreen).spec
+		op, ok := cat.Get(spec.opID)
+		if !ok || op.Status != catalog.StatusAvailable {
+			t.Errorf("%s calls %s, which cchp cannot run", spec.title, spec.opID)
+			continue
+		}
+		for flag := range spec.params {
+			if _, ok := op.Param(flag); !ok {
+				t.Errorf("%s passes --%s, which %s does not take", spec.title, flag, spec.opID)
+			}
+		}
 	}
 }

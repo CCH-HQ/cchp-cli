@@ -22,7 +22,7 @@ cchp api listUsageLogAttempts --request-id <requestId> --json
 
 ```
 cchp api listOrgProviders --json
-cchp api listProviderKeys --provider-id <id> --json
+cchp api listProviderKeyPage --provider-id <id> --json
 cchp api disableProviderKey --provider-id <id> --key-id <keyId> --dry-run --json
 cchp api disableProviderKey --provider-id <id> --key-id <keyId> --allow-write --json
 ```

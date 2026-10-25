@@ -75,7 +75,7 @@ groups:
 ```sh
 cchp usage summary
 cchp providers list
-cchp keys list <provider-id>
+cchp keys list --provider-id <provider-id>
 cchp llm-tokens list
 cchp requests list --limit 20
 cchp requests get <request-id>

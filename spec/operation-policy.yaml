@@ -20,12 +20,17 @@ operations:
   activateLLMKeyAccountSetupTOTP: {risk: write}
   activateMFATotp: {risk: write}
   addTeamMember: {risk: write, permission: "team_member:invite"}
+  adjustMemberBalance: {risk: destructive, permission: "member_billing:adjust_balance"}
+  adjustMemberQuota: {risk: write, permission: "member_billing:adjust_quota"}
   advanceConfigExperimentRamp: {risk: write, permission: "config:publish"}
   applyCasbinMembershipRepair: {risk: destructive, permission: "identity:write"}
   applyProviderKeyModelSync: {risk: destructive, permission: "provider_key:write"}
   applyProviderKeysUpstreamRatio: {risk: destructive, permission: "provider_key:write"}
   applyRedeemCodes: {risk: destructive, permission: "operations:write"}
+  applyRequestOverridePreset: {risk: write, permission: "config:write"}
+  approveInviteJoinRequest: {risk: write, permission: "org_invite:approve"}
   approveReprice: {risk: destructive, permission: "billing:approve"}
+  backfillArchiveDestination: {risk: write, permission: "config:write"}
   batchCreateProviderBundle: {risk: write, permission: "provider:write"}
   batchCreateProviderEndpoints: {risk: write, permission: "provider:write"}
   batchCreateProviderKeys: {risk: write, permission: "provider_key:write"}
@@ -44,7 +49,8 @@ operations:
   cancelCCHubImport: {risk: destructive, permission: "config:write"}
   cancelPaymentOrder: {risk: destructive, permission: "wallet:use"}
   cancelProfilingCapture: {risk: destructive, permission: "profiling:run"}
-  cancelReprice: {risk: destructive}
+  cancelProviderKeyBulkJob: {risk: destructive, permission: "provider_key:write"}
+  cancelReprice: {risk: destructive, permission: "billing:reprice"}
   cancelTask: {risk: destructive, permission: "task:cancel"}
   cancelTransactionalEmail: {risk: destructive, permission: "operations:write"}
   changeAccountEmail: {risk: write}
@@ -54,6 +60,7 @@ operations:
   claimReferral: {risk: write, permission: "wallet:use"}
   clearBrowserSession: {risk: destructive}
   clearOrgEntitlement: {risk: destructive, permission: "organization:write"}
+  clearPluginUpstreamGuardOverride: {risk: write, permission: "plugin:manage", note: "Ends the manual override only; overridePluginUpstreamGuard sets one again."}
   clearProviderKeySipWebhookSecret: {risk: destructive, permission: "provider_key:write"}
   compareProfilingCaptures: {risk: read, retry: true, permission: "profiling:read"}
   completeLLMKeyAccountSetup: {risk: write}
@@ -61,7 +68,6 @@ operations:
   completePaymentOrderPayer: {risk: write, permission: "wallet:use"}
   completeSAMLAuthentication: {risk: write}
   completeSSOOIDCAuthentication: {risk: read, retry: true}
-  completeSetup: {risk: write}
   configRealtime: {risk: read, retry: true, permission: "config:read"}
   confirmLLMKeyAccountSetupProfile: {risk: write}
   createAPIKey: {risk: write, permission: "token:create", secret_fields: [plaintext]}
@@ -84,8 +90,9 @@ operations:
   createLLMKeySession: {risk: write}
   createLLMToken: {risk: write, permission: "llm_token:create", secret_fields: [plaintext]}
   createLocalUser: {risk: write, permission: "identity:write"}
-  createMemberLLMKey: {risk: write, permission: "llm_token:create", secret_fields: [plaintext]}
+  createMemberLLMKey: {risk: write, permission: "member_llm_key:create", secret_fields: [plaintext]}
   createModel: {risk: write, permission: "provider:write"}
+  createModelAlias: {risk: write, permission: "provider:write"}
   createModelSafetyRule: {risk: write, permission: "config:write"}
   createModelSafetyTask: {risk: write, permission: "config:write"}
   createNotificationConnector: {risk: write, permission: "config:write"}
@@ -100,16 +107,15 @@ operations:
   createProviderEndpoint: {risk: write, permission: "provider:write"}
   createProviderGroup: {risk: write, permission: "provider:write"}
   createProviderKey: {risk: write, permission: "provider_key:write"}
+  createProviderKeyBulkJob: {risk: destructive, permission: "provider_key:write"}
   createProviderKeyModelSync: {risk: write, permission: "provider_key:write"}
   createProviderLivenessTask: {risk: write, permission: "provider_key:write"}
-  createProviderModelRedirect: {risk: write, permission: "provider:write"}
   createQuotaPolicy: {risk: write, permission: "quota_policy:write"}
   createRealtimeSipRoute: {risk: write, permission: "provider_key:write", secret_fields: [webhook_secret]}
   createSearchProvider: {risk: write, permission: "provider:write"}
   createSecurityChallenge: {risk: write}
   createSetupAdministrator: {risk: write}
   createSetupOrg: {risk: write}
-  createSetupProvider: {risk: write, permission: "provider:write"}
   createSocialConnector: {risk: write, permission: "identity:write"}
   createTaskResultStore: {risk: write, permission: "config:write"}
   createTeam: {risk: write, permission: "team:write"}
@@ -126,6 +132,7 @@ operations:
   deleteErrorRule: {risk: destructive, permission: "error_rule:write"}
   deleteJITPolicy: {risk: destructive, permission: "jit:write"}
   deleteModel: {risk: destructive, permission: "provider:write"}
+  deleteModelAlias: {risk: destructive, permission: "provider:write"}
   deleteModelSafetyRule: {risk: destructive, permission: "config:write"}
   deleteModelSafetyTask: {risk: destructive, permission: "config:write"}
   deleteNotificationConnector: {risk: destructive, permission: "config:write"}
@@ -137,7 +144,6 @@ operations:
   deleteProviderEndpoint: {risk: destructive, permission: "provider:write"}
   deleteProviderGroup: {risk: destructive, permission: "provider:write"}
   deleteProviderLivenessTask: {risk: destructive, permission: "provider_key:write"}
-  deleteProviderModelRedirect: {risk: destructive, permission: "provider:write"}
   deleteQuotaPolicy: {risk: destructive, permission: "quota_policy:write"}
   deleteRealtimeSipRoute: {risk: destructive, permission: "provider_key:write"}
   deleteSearchProvider: {risk: destructive, permission: "provider:write"}
@@ -149,6 +155,7 @@ operations:
   disableMemberLLMKey: {risk: write, permission: "member_llm_key:toggle", note: "Reversible with enableMemberLLMKey."}
   disableProviderKey: {risk: write, permission: "provider_key:write", note: "Reversible with enableProviderKey."}
   discardConfigM2Draft: {risk: destructive, permission: "config:write"}
+  discardUsageDeadLetter: {risk: destructive, permission: "config:write"}
   discoverProviderModels: {risk: write, permission: "provider:write"}
   downloadCCHubImportReport: {risk: read, retry: true, permission: "config:read"}
   downloadProfilingCapture: {risk: read, retry: true, permission: "profiling:read"}
@@ -208,6 +215,7 @@ operations:
   getDefaultOrganization: {risk: read, retry: true, permission: "organization:read"}
   getDeviceFlowStatus: {risk: read, retry: true, permission: "identity:read"}
   getEffectiveQuota: {risk: read, retry: true, permission: "usage:read"}
+  getFeatureFlags: {risk: read, retry: true}
   getFinanceEvent: {risk: read, retry: true, permission: "finance_event:read"}
   getFinanceEventSummary: {risk: read, retry: true, permission: "finance_event:read"}
   getGrantAdjustmentRun: {risk: read, retry: true, permission: "grant_adjustment:read"}
@@ -220,10 +228,13 @@ operations:
   getLatestProviderKeyModelSync: {risk: read, retry: true, permission: "provider_key:read"}
   getLoginMFAStatus: {risk: read}
   getMFAStatus: {risk: read, retry: true}
+  getMailReadiness: {risk: read, retry: true, permission: "config:read"}
   getMe: {risk: read, retry: true}
   getMember: {risk: read, retry: true, permission: "member:read"}
   getMemberAccount: {risk: read, retry: true, permission: "member:read"}
+  getMemberBilling: {risk: read, retry: true, permission: "member_billing:read"}
   getMemberOverdraftLimit: {risk: read, retry: true, permission: "overdraft_limit:read"}
+  getMemberQuota: {risk: read, retry: true, permission: "member_billing:read"}
   getModel: {risk: read, retry: true, permission: "provider:read"}
   getModelPricing: {risk: read, retry: true, permission: "provider:read"}
   getModelSafetyRunOperation: {risk: read, retry: true, permission: "config:read"}
@@ -231,8 +242,10 @@ operations:
   getModerationEventStats: {risk: read, retry: true, permission: "moderation_event:read"}
   getModerationEventSummary: {risk: read, retry: true, permission: "moderation_event:read"}
   getModerationSettings: {risk: read, retry: true, permission: "config:read"}
+  getMyKeyRequestOverrides: {risk: read, retry: true, permission: "llm_token:read"}
   getMyModerationCooldown: {risk: read, retry: true}
   getMyPermissionSummary: {risk: read, retry: true}
+  getMyUsageLog: {risk: read, retry: true, permission: "usage:read"}
   getOperation: {risk: read, retry: true}
   getOrgBalance: {risk: read, retry: true, permission: "billing:read"}
   getOrgBilling: {risk: read, retry: true, permission: "overdraft_limit:read"}
@@ -242,6 +255,7 @@ operations:
   getOrgProvider: {risk: read, retry: true, permission: "provider:read"}
   getOrgStorageConfig: {risk: read, retry: true, permission: "organization:read"}
   getOrgTree: {risk: read, retry: true, permission: "hier_organization:view_self"}
+  getOrganizationMailReadiness: {risk: read, retry: true, permission: "member:invite"}
   getPaymentOrder: {risk: read, retry: true, permission: "wallet:read"}
   getPermissionCatalog: {risk: read, retry: true, permission: "identity:read"}
   getPermissionMatrix: {risk: read, retry: true, permission: "identity:read"}
@@ -258,24 +272,36 @@ operations:
   getProviderGroup: {risk: read, retry: true, permission: "provider:read"}
   getProviderGroupBindings: {risk: read, retry: true, permission: "provider:read"}
   getProviderGroupKeyScheduling: {risk: read, retry: true, permission: "provider:read"}
+  getProviderGroupModelRules: {risk: read, retry: true, permission: "provider:read"}
   getProviderGroupSchedulableModels: {risk: read, retry: true, permission: "provider:read"}
   getProviderGroupScheduling: {risk: read, retry: true, permission: "provider:read"}
   getProviderInventory: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKey: {risk: read, retry: true, permission: "provider:read"}
   getProviderKeyBalance: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKeyBulkJob: {risk: read, retry: true, permission: "provider:read"}
   getProviderKeyHealthBars: {risk: read, retry: true, permission: "provider:read"}
   getProviderKeyLivenessContexts: {risk: read, permission: "provider:read"}
   getProviderKeyModelSync: {risk: read, retry: true, permission: "provider_key:read"}
   getProviderKeyRuntime: {risk: read, retry: true, permission: "provider:read"}
   getProviderKeyStats: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKeySummary: {risk: read, retry: true, permission: "provider:read"}
   getProviderKeyTaskCallbacks: {risk: read, retry: true, permission: "provider_key:read"}
+  getProviderKeyTotals: {risk: read, retry: true, permission: "provider:read"}
+  getProviderKeysByIds: {risk: read, retry: true, permission: "provider:read"}
+  getProviderListCounts: {risk: read, retry: true, permission: "provider:read"}
+  getProviderNewKeyUpstreamDefaults: {risk: read, retry: true, permission: "provider_key:write"}
   getPublicCatalogModelClients: {risk: read, retry: true}
   getPublicCatalogModelExtras: {risk: read, retry: true}
   getPublicCatalogModelPerformance: {risk: read, retry: true}
+  getQuotaPools: {risk: read, retry: true, permission: "organization:read"}
+  getQuotaStatus: {risk: read, retry: true, permission: "quota_policy:read"}
   getRedeemCodeApplyRun: {risk: read, retry: true, permission: "operations:read"}
   getRedeemCodeBatch: {risk: read, retry: true, permission: "operations:read"}
   getReleaseTask: {risk: read, retry: true, permission: "operations:read"}
   getRepriceJob: {risk: read, retry: true, permission: "billing:read"}
-  getRequestFilterSettings: {risk: read, retry: true, permission: "config:read"}
+  getRequestOverrideCatalog: {risk: read, retry: true, permission: "config:read"}
+  getRequestOverrideRevision: {risk: read, retry: true, permission: "config:read"}
+  getRequestOverrideRuleSets: {risk: read, retry: true, permission: "config:read"}
   getSAMLServiceProviderMetadata: {risk: read, retry: true}
   getSearchProvider: {risk: read, retry: true, permission: "provider:read"}
   getSecurityChallengeOverview: {risk: read, retry: true, permission: "config:read"}
@@ -294,6 +320,7 @@ operations:
   getTeam: {risk: read, retry: true, permission: "team:read"}
   getTeamOverdraftLimit: {risk: read, retry: true, permission: "overdraft_limit:read"}
   getTeamTree: {risk: read, retry: true, permission: "team:read"}
+  getUsageDeadLetter: {risk: read, retry: true, permission: "config:read"}
   getUsageDrilldown: {risk: read, retry: true, permission: "usage:read"}
   getUsageExport: {risk: read, retry: true, permission: "usage:read"}
   getUsageGauge: {risk: read, retry: true, permission: "usage:read"}
@@ -308,6 +335,7 @@ operations:
   getUsageStatusDist: {risk: read, retry: true, permission: "usage:read"}
   getUsageSummary: {risk: read, retry: true, permission: "usage:read"}
   getUsageTimeseries: {risk: read, retry: true, permission: "usage:read"}
+  getUsageViewPolicy: {risk: read, retry: true, permission: "usage:read"}
   getUser: {risk: read, retry: true, permission: "member:read"}
   getUserAvatar: {risk: read, retry: true}
   getWalletAff: {risk: read, retry: true, permission: "wallet:read"}
@@ -359,13 +387,16 @@ operations:
   listDisputes: {risk: read, retry: true, permission: "billing:read"}
   listDomainBindings: {risk: read, retry: true, permission: "domain_binding:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
   listErrorRules: {risk: read, retry: true, permission: "error_rule:read"}
+  listFeatureFlags: {risk: read, retry: true, permission: "config:read"}
   listFinanceEvents: {risk: read, retry: true, permission: "finance_event:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
   listGrantAdjustmentGrants: {risk: read, retry: true, permission: "grant_adjustment:read", pagination: {style: page, param: page, limit_param: pageSize, items: grants, total: total}}
   listGrantAdjustmentItems: {risk: read, retry: true, permission: "grant_adjustment:read", pagination: {style: page, param: page, limit_param: pageSize, items: items, total: total}}
   listGrantAdjustmentPackages: {risk: read, retry: true, permission: "grant_adjustment:read"}
   listGrantAdjustmentRuns: {risk: read, retry: true, permission: "grant_adjustment:read", pagination: {style: page, param: page, limit_param: pageSize, items: runs, total: total}}
   listGrantAdjustmentSubjects: {risk: read, retry: true, permission: "grant_adjustment:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
+  listIPBlocklist: {risk: read, retry: true, permission: "config:read"}
   listInvitations: {risk: read, retry: true, permission: "member:read", pagination: {style: page, param: page, limit_param: pageSize, items: invitations, total: total}}
+  listInviteJoinRequests: {risk: read, retry: true, permission: "org_invite:read"}
   listInviteRedemptions: {risk: read, retry: true, permission: "org_invite:read"}
   listInvoices: {risk: read, retry: true, permission: "billing:read"}
   listJITPolicies: {risk: read, retry: true, permission: "identity:read"}
@@ -374,8 +405,11 @@ operations:
   listLLMTokenProviderGroups: {risk: read, retry: true, permission: "provider:use"}
   listLLMTokens: {risk: read, retry: true, permission: "llm_token:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: tokens, total: total}}
   listLedgerTransfers: {risk: read, retry: true, permission: "billing:read"}
-  listMemberLLMKeys: {risk: read, retry: true, permission: "llm_token:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: llmKeys, total: total}}
+  listMemberBillingActions: {risk: read, retry: true, permission: "member_billing:read", pagination: {style: page, param: page, limit_param: pageSize, items: actions, total: total}}
+  listMemberLLMKeys: {risk: read, retry: true, permission: "member_llm_key:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: llmKeys, total: total}}
+  listMemberPackages: {risk: read, retry: true, permission: "member_billing:read"}
   listMembers: {risk: read, retry: true, permission: "member:read", pagination: {style: page, param: page, limit_param: pageSize, items: members, total: total}}
+  listModelAliases: {risk: read, retry: true, permission: "provider:read"}
   listModelNames: {risk: read, retry: true, permission: "provider:read"}
   listModelSafetyRules: {risk: read, retry: true, permission: "config:read"}
   listModelSafetyTaskRuns: {risk: read, retry: true, permission: "config:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: runs}}
@@ -383,6 +417,7 @@ operations:
   listModels: {risk: read, retry: true, permission: "provider:read", pagination: {style: page, param: page, limit_param: pageSize, items: models, total: total}}
   listModerationEvents: {risk: read, retry: true, permission: "moderation_event:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
   listModerationSanctions: {risk: read, retry: true, permission: "moderation_event:read"}
+  listMyInviteJoinRequests: {risk: read, retry: true}
   listNotificationCategories: {risk: read, retry: true, permission: "config:read"}
   listNotificationConnectors: {risk: read, retry: true, permission: "config:read"}
   listOrgAudit: {risk: read, retry: true, permission: "audit:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: events}}
@@ -399,14 +434,16 @@ operations:
   listProfilingNodes: {risk: read, retry: true, permission: "profiling:read"}
   listProviderEndpoints: {risk: read, retry: true, permission: "provider:read"}
   listProviderFavicons: {risk: read, retry: true, permission: "provider:read"}
-  listProviderGroups: {risk: read, retry: true, permission: "provider:read"}
+  listProviderGroupMemberModels: {risk: read, retry: true, permission: "provider:read", pagination: {style: page, param: page, limit_param: pageSize, items: models, total: total}}
+  listProviderGroups: {risk: read, retry: true, permission: "provider:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: groups, total: total}}
+  listProviderKeyBulkJobs: {risk: read, retry: true, permission: "provider:read"}
   listProviderKeyLivenessStates: {risk: read, retry: true, permission: "provider:read"}
-  listProviderKeys: {risk: read, retry: true, permission: "provider:read"}
+  listProviderKeyPage: {risk: read, retry: true, permission: "provider:read", pagination: {style: cursor, param: after, limit_param: limit, next: nextCursor, items: keys}}
   listProviderKeysUpstreamStates: {risk: read, retry: true, permission: "provider:read"}
   listProviderLivenessEndpoints: {risk: read, retry: true, permission: "provider:read"}
   listProviderLivenessTaskRuns: {risk: read, retry: true, permission: "provider:read"}
   listProviderLivenessTasks: {risk: read, retry: true, permission: "provider:read"}
-  listProviderModelRedirects: {risk: read, retry: true, permission: "provider:read"}
+  listProviderRevokedKeys: {risk: read, retry: true, permission: "provider:read", pagination: {style: cursor, param: after, limit_param: limit, next: nextCursor, items: keys, total: total}}
   listProviderUpstreamCooldowns: {risk: read, retry: true, permission: "provider:read"}
   listPublicCatalogModels: {risk: read, retry: true}
   listQuotaPolicies: {risk: read, retry: true, permission: "quota_policy:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
@@ -415,6 +452,8 @@ operations:
   listRedeemCodeApplyRuns: {risk: read, retry: true, permission: "operations:read"}
   listRedeemCodes: {risk: read, retry: true, permission: "operations:write", note: "Lists the codes in plain text; it needs the permission that issues them.", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items, total: total}}
   listReleaseTasks: {risk: read, retry: true, permission: "operations:read"}
+  listRequestBodyBudgetNodes: {risk: read, retry: true, permission: "config:read"}
+  listRequestOverrideRevisions: {risk: read, retry: true, permission: "config:read"}
   listSearchProviderTypes: {risk: read, retry: true, permission: "provider:read"}
   listSearchProviders: {risk: read, retry: true, permission: "provider:read"}
   listSecurityChallengeEvents: {risk: read, retry: true, permission: "config:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: events}}
@@ -425,12 +464,13 @@ operations:
   listTeamMembers: {risk: read, retry: true, permission: "team_member:read"}
   listTeams: {risk: read, retry: true, permission: "team:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
   listTransactionalEmails: {risk: read, retry: true, permission: "operations:read"}
-  listUsageByKey: {risk: read, retry: true}
-  listUsageByModel: {risk: read, retry: true}
-  listUsageByOrganization: {risk: read, retry: true}
-  listUsageByProvider: {risk: read, retry: true}
-  listUsageByTeam: {risk: read, retry: true}
-  listUsageByUser: {risk: read, retry: true}
+  listUsageByKey: {risk: read, retry: true, permission: "usage:read"}
+  listUsageByModel: {risk: read, retry: true, permission: "usage:read"}
+  listUsageByOrganization: {risk: read, retry: true, permission: "usage:read"}
+  listUsageByProvider: {risk: read, retry: true, permission: "usage:read"}
+  listUsageByTeam: {risk: read, retry: true, permission: "usage:read"}
+  listUsageByUser: {risk: read, retry: true, permission: "usage:read"}
+  listUsageDeadLetters: {risk: read, retry: true, permission: "config:read"}
   listUsageLogAttempts: {risk: read, retry: true, permission: "usage:read"}
   listUsageLogFilterOptions: {risk: read, retry: true, permission: "usage:read"}
   listUsageLogs: {risk: read, retry: true, permission: "usage:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: page.nextCursor, items: page.items, total: page.total}}
@@ -451,17 +491,24 @@ operations:
   overridePluginUpstreamGuard: {risk: write, permission: "plugin:manage"}
   patchAccountOrg: {risk: write, permission: "organization:write"}
   patchAccountPreferences: {risk: write, permission: "account:update"}
-  pauseReprice: {risk: write}
+  patchRequestOverrideRule: {risk: write, permission: "config:write"}
+  pauseReprice: {risk: write, permission: "billing:reprice"}
   pingDomainBinding: {risk: write, permission: "domain_binding:read"}
   previewBillingAdjustment: {risk: read, permission: "operations:read"}
   previewCCHubImport: {risk: write, permission: "config:write"}
   previewCasbinMembershipRepair: {risk: read, retry: true, permission: "identity:read"}
   previewGrantAdjustment: {risk: read, permission: "grant_adjustment:read"}
   previewInvitation: {risk: write}
+  previewMailTemplate: {risk: read, permission: "config:read"}
+  previewMemberBalanceAdjustment: {risk: read, permission: "member_billing:adjust_balance"}
+  previewMemberQuotaAdjustment: {risk: read, permission: "member_billing:adjust_quota"}
   previewProviderKeyModelSyncDraft: {risk: write, permission: "provider:read"}
   previewProviderModels: {risk: write, permission: "provider:read"}
   previewRedeemCodeApply: {risk: read, permission: "operations:read"}
   previewRedeemCodes: {risk: read, permission: "wallet:use"}
+  previewRedeemForMember: {risk: read, permission: "member_billing:redeem", note: "The check counts toward the member's redemption rate limit."}
+  previewRevokeMemberPackage: {risk: read, permission: "member_billing:revoke_package"}
+  previewRoute: {risk: read, retry: true, permission: "provider:read"}
   previewUnboundProviderModels: {risk: write, permission: "provider:read"}
   promoteConfigExperiment: {risk: destructive, permission: "config:publish"}
   publishConfig: {risk: destructive, permission: "config:publish"}
@@ -474,10 +521,12 @@ operations:
   reactivateOrg: {risk: write, permission: "organization:write"}
   redeemCapChallenge: {risk: write}
   redeemCodes: {risk: destructive, permission: "wallet:use"}
+  redeemForMember: {risk: destructive, permission: "member_billing:redeem"}
   redeemOrgInvite: {risk: write}
   redeemSetupToken: {risk: write}
   refreshProviderFavicon: {risk: write, permission: "provider:write"}
   regenerateAccountRecoveryCodes: {risk: write}
+  rejectInviteJoinRequest: {risk: destructive, permission: "org_invite:approve", note: "The person cannot use the same invite code again."}
   releaseProviderUpstreamCooldown: {risk: write, permission: "provider:write", note: "Ends a temporary cooldown early; nothing is deleted."}
   removeAccountAvatar: {risk: destructive}
   removeAccountPasskey: {risk: destructive}
@@ -487,14 +536,19 @@ operations:
   removeUserFromOrg: {risk: destructive, permission: "member:remove"}
   renameAccountPasskey: {risk: write}
   renewWalletPackage: {risk: destructive, permission: "wallet:use"}
+  reorderProviderKey: {risk: write, permission: "provider_key:write", note: "Reversible with undoProviderKeyReorder."}
   reparentOrgTreeNode: {risk: destructive, permission: "team:write"}
   replaceClientRules: {risk: destructive, permission: "operations:write"}
+  replaceProviderGroupModelRules: {risk: destructive, permission: "provider:write"}
+  replayUsageDeadLetter: {risk: write, permission: "config:write"}
   resetAuthPassword: {risk: write}
   resetModelSafetyRule: {risk: destructive, permission: "config:write"}
+  resetProviderGroupModelRules: {risk: destructive, permission: "provider:write"}
   resetUserSecurity: {risk: write, permission: "identity:write"}
   resolveSiteLink: {risk: read, retry: true, permission: "config:write"}
+  restoreRequestOverrideRevision: {risk: destructive, permission: "config:write", note: "The restored version becomes a new version; the replaced rules stay in the revision history."}
   resumeRedeemCodeApplyRun: {risk: destructive, permission: "operations:write"}
-  resumeReprice: {risk: write}
+  resumeReprice: {risk: write, permission: "billing:reprice"}
   retryCCHubImport: {risk: write, permission: "config:write"}
   retryGrantAdjustmentRun: {risk: destructive, permission: "grant_adjustment:write"}
   revealLLMToken: {risk: write, permission: "llm_token:read"}
@@ -510,13 +564,14 @@ operations:
   revokeKeySession: {risk: destructive, permission: "session:write"}
   revokeLLMKeySession: {risk: destructive}
   revokeLLMToken: {risk: destructive, permission: "llm_token:revoke"}
-  revokeMemberLLMKey: {risk: destructive, permission: "llm_token:revoke"}
+  revokeMemberLLMKey: {risk: destructive, permission: "member_llm_key:revoke"}
+  revokeMemberPackage: {risk: destructive, permission: "member_billing:revoke_package"}
   revokeOrgInvite: {risk: destructive, permission: "org_invite:revoke"}
   revokeProviderKey: {risk: destructive, permission: "provider_key:write"}
   revokeUserSession: {risk: destructive}
   rollbackConfigM2: {risk: destructive, permission: "config:publish"}
   rotateAPIKey: {risk: destructive, permission: "token:rotate"}
-  rotateMemberLLMKey: {risk: destructive, permission: "llm_token:rotate", secret_fields: [plaintext]}
+  rotateMemberLLMKey: {risk: destructive, permission: "member_llm_key:rotate", secret_fields: [plaintext]}
   rotatePluginUpstreamWebhookSecret: {risk: write, permission: "plugin:manage"}
   rotateProviderKey: {risk: destructive, permission: "provider_key:rotate"}
   rotateTaskWebhookSecret: {risk: destructive, permission: "organization:write"}
@@ -528,8 +583,9 @@ operations:
   saveAdminPluginConfig: {risk: write, permission: "plugin:manage"}
   saveAdminPluginTargets: {risk: write, permission: "plugin:manage"}
   saveModerationSettings: {risk: write, permission: "config:write"}
+  saveMyKeyRequestOverrides: {risk: destructive, permission: "llm_token:update"}
   savePrivacyFilterSettings: {risk: write, permission: "config:write"}
-  saveRequestFilterSettings: {risk: write, permission: "config:write"}
+  saveRequestOverrideRuleSet: {risk: destructive, permission: "config:write", note: "The replaced rules stay in the revision history."}
   saveSetupSite: {risk: write}
   saveSplitProviderEndpoints: {risk: write, permission: "provider:write"}
   saveSystemConfig: {risk: destructive, permission: "config:write"}
@@ -541,6 +597,7 @@ operations:
   sendTestMail: {risk: write, permission: "config:write"}
   setAffAssignment: {risk: write, permission: "operations:write"}
   setDefaultOrganization: {risk: destructive, permission: "organization:write"}
+  setFeatureFlag: {risk: destructive, permission: "config:write"}
   setLLMKeyAccountSetupPassword: {risk: write}
   setMemberEmail: {risk: write, permission: "member_account:set_email"}
   setMemberTemporaryPassword: {risk: destructive, permission: "member_account:set_password"}
@@ -581,11 +638,12 @@ operations:
   testProvider: {risk: write, permission: "provider:test"}
   testProviderCredentialLiveness: {risk: write, permission: "provider_key:write"}
   testProviderKeyLiveness: {risk: write, permission: "provider_key:write"}
-  testRequestFilter: {risk: read, permission: "config:read"}
   testSearchProvider: {risk: write, permission: "provider:test"}
   testTaskResultStore: {risk: write, permission: "config:write"}
   transferOrgOwner: {risk: destructive, permission: "organization:write"}
   unbindAccountReferral: {risk: destructive, permission: "wallet:use"}
+  unblockIP: {risk: write, permission: "config:write", note: "Lifts the block only; the gateway blocks the IP again when it keeps failing authentication."}
+  undoProviderKeyReorder: {risk: write, permission: "provider_key:write"}
   unlinkAccountIdentity: {risk: destructive}
   updateAccountProfile: {risk: write}
   updateAdminOrgBilling: {risk: destructive, permission: "organization:write"}
@@ -594,11 +652,12 @@ operations:
   updateArchiveDestination: {risk: write, permission: "config:write"}
   updateCLIClient: {risk: write, permission: "identity:write"}
   updateCronJob: {risk: write, permission: "cron:write"}
+  updateCronJobSchedule: {risk: write, permission: "cron:write"}
   updateDomainBinding: {risk: write, permission: "domain_binding:write"}
   updateErrorRule: {risk: write, permission: "error_rule:write"}
   updateLLMToken: {risk: write, permission: "llm_token:update"}
   updateMember: {risk: write, permission: "member:role:update"}
-  updateMemberLLMKey: {risk: write, permission: "llm_token:update"}
+  updateMemberLLMKey: {risk: write, permission: "member_llm_key:update"}
   updateMemberOverdraftLimit: {risk: write, permission: "overdraft_limit:write"}
   updateMemberRole: {risk: destructive, permission: "member:role:update"}
   updateModel: {risk: write, permission: "provider:write"}
@@ -617,7 +676,6 @@ operations:
   updateProviderKey: {risk: write, permission: "provider_key:write"}
   updateProviderKeyTaskCallbacks: {risk: write, permission: "provider_key:write"}
   updateProviderLivenessTask: {risk: write, permission: "provider_key:write"}
-  updateProviderModelRedirect: {risk: write, permission: "provider:write"}
   updateQuotaPolicy: {risk: write, permission: "quota_policy:write"}
   updateRealtimeSipRoute: {risk: write, permission: "provider_key:write", secret_fields: [webhook_secret]}
   updateRedeemCode: {risk: write, permission: "operations:write"}
@@ -633,6 +691,8 @@ operations:
   uploadAdminPlugin: {risk: destructive, permission: "plugin:manage"}
   uploadCCHubImport: {risk: write, permission: "config:write"}
   upsertJITPolicy: {risk: write, permission: "jit:write"}
+  validateMyKeyRequestOverrides: {risk: read, permission: "llm_token:read"}
+  validateRequestOverrides: {risk: read, permission: "config:read"}
   verifyLoginMFA: {risk: write}
   verifySecurityChallenge: {risk: write}
   walletCheckin: {risk: write, permission: "wallet:use"}

@@ -454,7 +454,7 @@ func providerKeysPicker() screen {
 
 func providerKeysScreen(providerID, providerName string) screen {
 	return newListScreen(listSpec{
-		title: "Keys of " + providerName, opID: "listProviderKeys", params: map[string][]string{"provider-id": {providerID}}, itemsPath: "keys",
+		title: "Keys of " + providerName, opID: "listProviderKeyPage", params: map[string][]string{"provider-id": {providerID}, "limit": {"100"}}, itemsPath: "keys",
 		empty:  "This provider has no keys yet.",
 		fields: []string{"name", "status", "secret_prefix", "secret_last_four", "priority", "weight", "cost_multiplier_ppm", "credential_type", "notes", "id"},
 		toEntry: func(r row) entry {
