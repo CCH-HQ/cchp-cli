@@ -360,7 +360,7 @@ actions:
   - {target: "$.paths['/api/admin/cron/jobs/{jobId}'].put", update: {x-cchp-group: admin, x-cli-name: update-cron-job, x-cli-description: "Turn a scheduled job on or off."}}
   - {target: "$.paths['/api/admin/cron/jobs/{jobId}/run'].post", update: {x-cchp-group: admin, x-cli-name: run-cron-job, x-cli-description: "Run a scheduled job now without changing its schedule."}}
   - {target: "$.paths['/api/admin/cron/jobs/{jobId}/runs'].get", update: {x-cchp-group: admin, x-cli-name: cron-job-runs, x-cli-description: "List a scheduled job's past runs."}}
-  - {target: "$.paths['/api/admin/cron/jobs/{jobId}/schedule'].put", update: {x-cchp-group: admin, x-cli-name: set-cron-schedule, x-cli-description: "Change a built-in scheduled job's cron schedule; its default schedule restores the default."}}
+  - {target: "$.paths['/api/admin/cron/jobs/{jobId}/schedule'].put", update: {x-cchp-group: admin, x-cli-name: set-cron-schedule, x-cli-description: "Change the cron schedule of a built-in scheduled job; giving its default schedule goes back to the default."}}
   - {target: "$.paths['/api/admin/orgs/{orgId}/entitlements'].get", update: {x-cchp-group: admin, x-cli-name: entitlements, x-cli-description: "List an organization's entitlements."}}
   - {target: "$.paths['/api/admin/orgs/{orgId}/entitlements/{featureKey}'].delete", update: {x-cchp-group: admin, x-cli-name: clear-entitlement, x-cli-description: "Clear one of an organization's entitlements."}}
   - {target: "$.paths['/api/admin/orgs/{orgId}/entitlements/{featureKey}'].put", update: {x-cchp-group: admin, x-cli-name: set-entitlement, x-cli-description: "Set one of an organization's entitlements."}}

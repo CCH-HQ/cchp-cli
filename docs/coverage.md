@@ -106,7 +106,7 @@ Risk shows how agent mode treats a call: `read` runs by default, `write` needs `
 - `cchp admin run-cron-job` (`runCronJobNow`, write): Run a scheduled job now without changing its schedule.
 - `cchp admin save-system-config` (`saveSystemConfig`, destructive): Save system settings for a scope; they take effect at once.
 - `cchp admin send-test-mail` (`sendTestMail`, write): Send a test email through the configured mail server.
-- `cchp admin set-cron-schedule` (`updateCronJobSchedule`, write): Change a built-in scheduled job's cron schedule; its default schedule restores the default.
+- `cchp admin set-cron-schedule` (`updateCronJobSchedule`, write): Change the cron schedule of a built-in scheduled job; giving its default schedule goes back to the default.
 - `cchp admin set-default-org` (`setDefaultOrganization`, destructive): Set or clear the organization new users join by default.
 - `cchp admin set-entitlement` (`setOrgEntitlement`, destructive): Set one of an organization's entitlements.
 - `cchp admin set-feature-flag` (`setFeatureFlag`, destructive): Turn a feature flag on or off for the whole platform; it is published at once.
