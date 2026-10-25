@@ -61,6 +61,14 @@ Built from the CCHP v1.0.12 control-plane spec with embedded Restish v2.3.0.
   `cchp api listProviderKeys` is now `cchp api listProviderKeyPage`, and the
   home screen's provider keys list reads its first 100 keys of the provider
   through it ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
+- `cchp commands --search` ranks commands by the words of their command path,
+  their group's title and their English summary, in any grammatical form
+  (`keys` matches `key`), so a command keeps its place when CCHP renames the
+  operation behind it: `cchp commands --search "provider keys"` finds
+  `cchp keys list` first. Among equal matches the list comes first. An unknown
+  operation ID suggests the operation whose words match it, for example
+  `listProviderKeyPage` for `cchp api listProviderKeys`
+  ([#7](https://github.com/CCH-HQ/cchp-cli/pull/7)).
 
 ### Removed
 

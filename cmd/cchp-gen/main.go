@@ -25,7 +25,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"unicode"
 
 	"github.com/pb33f/libopenapi"
 	"go.yaml.in/yaml/v3"
@@ -408,7 +407,7 @@ func (g *generator) operation(method, path string, node map[string]any, pathPara
 	op.Group = str(node["x-cchp-group"])
 	op.Name = str(node["x-cli-name"])
 	if op.Name == "" {
-		op.Name = kebab(id)
+		op.Name = catalog.Kebab(id)
 	}
 	op.Aliases = strs(node["x-cli-aliases"])
 	op.Summary = str(node["x-cli-description"])
@@ -1127,36 +1126,12 @@ func mergeParams(pathParams, opParams []map[string]any) []map[string]any {
 	return out
 }
 
-// kebab turns an operationId such as listOrgProviders into list-org-providers.
-func kebab(s string) string {
-	var b strings.Builder
-	runes := []rune(s)
-	for i, r := range runes {
-		if unicode.IsUpper(r) {
-			prevLower := i > 0 && (unicode.IsLower(runes[i-1]) || unicode.IsDigit(runes[i-1]))
-			nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
-			prevUpper := i > 0 && unicode.IsUpper(runes[i-1])
-			if i > 0 && (prevLower || (prevUpper && nextLower)) {
-				b.WriteByte('-')
-			}
-			b.WriteRune(unicode.ToLower(r))
-			continue
-		}
-		if r == '_' || r == ' ' || r == '.' {
-			b.WriteByte('-')
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
 func flagName(name, in string) string {
 	if in == "header" {
 		n := strings.ToLower(name)
 		return strings.TrimPrefix(n, "x-")
 	}
-	return kebab(name)
+	return catalog.Kebab(name)
 }
 
 func str(v any) string {

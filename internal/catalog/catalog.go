@@ -11,6 +11,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // Coverage outcomes for an upstream operation.
@@ -211,68 +212,6 @@ func (c *Catalog) InGroup(group string) []*Operation {
 	return out
 }
 
-// Search ranks operations by how well they match every word of the query.
-// Unavailable operations are included only when includeAll is set.
-func (c *Catalog) Search(query string, includeAll bool) []*Operation {
-	words := strings.Fields(strings.ToLower(query))
-	type scored struct {
-		op    *Operation
-		score int
-	}
-	var hits []scored
-	for _, op := range c.Operations {
-		if !includeAll && op.Status != StatusAvailable {
-			continue
-		}
-		score := 0
-		matched := true
-		for _, w := range words {
-			s := op.matchScore(w)
-			if s == 0 {
-				matched = false
-				break
-			}
-			score += s
-		}
-		if matched {
-			hits = append(hits, scored{op, score})
-		}
-	}
-	sort.SliceStable(hits, func(i, j int) bool {
-		if hits[i].score != hits[j].score {
-			return hits[i].score > hits[j].score
-		}
-		// Among equal matches the shorter, more general operation comes first.
-		if len(hits[i].op.ID) != len(hits[j].op.ID) {
-			return len(hits[i].op.ID) < len(hits[j].op.ID)
-		}
-		return hits[i].op.ID < hits[j].op.ID
-	})
-	out := make([]*Operation, len(hits))
-	for i, h := range hits {
-		out[i] = h.op
-	}
-	return out
-}
-
-func (op *Operation) matchScore(word string) int {
-	switch {
-	case strings.ToLower(op.ID) == word:
-		return 100
-	case strings.Contains(strings.ToLower(op.ID), word):
-		return 20
-	case op.Group == word || op.Name == word:
-		return 15
-	case strings.Contains(op.Group+" "+op.Name, word):
-		return 10
-	case strings.Contains(strings.ToLower(op.Summary), word):
-		return 5
-	case strings.Contains(strings.ToLower(op.Path), word):
-		return 3
-	}
-	return 0
-}
-
 // Param returns the parameter with the given flag name.
 func (op *Operation) Param(flag string) (Param, bool) {
 	for _, p := range op.Params {
@@ -285,3 +224,27 @@ func (op *Operation) Param(flag string) (Param, bool) {
 
 // Command is the human command path, for example "providers list".
 func (op *Operation) Command() string { return op.Group + " " + op.Name }
+
+// Kebab turns an operationId such as listOrgProviders into list-org-providers.
+func Kebab(s string) string {
+	var b strings.Builder
+	runes := []rune(s)
+	for i, r := range runes {
+		if unicode.IsUpper(r) {
+			prevLower := i > 0 && (unicode.IsLower(runes[i-1]) || unicode.IsDigit(runes[i-1]))
+			nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+			prevUpper := i > 0 && unicode.IsUpper(runes[i-1])
+			if i > 0 && (prevLower || (prevUpper && nextLower)) {
+				b.WriteByte('-')
+			}
+			b.WriteRune(unicode.ToLower(r))
+			continue
+		}
+		if r == '_' || r == ' ' || r == '.' {
+			b.WriteByte('-')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}

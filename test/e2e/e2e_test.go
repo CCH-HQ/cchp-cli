@@ -226,7 +226,7 @@ func TestEnvironmentCredentials(t *testing.T) {
 func TestDiscoveryWorksOffline(t *testing.T) {
 	dir := t.TempDir()
 	env := []string{"CCHP_CONFIG_DIR=" + dir, "CCHP_CACHE_DIR=" + dir, "CCHP_BASE_URL=", "CCHP_TOKEN=", "CCHP_TOKEN_FILE="}
-	r := cchp(t, env, "", "commands", "--search", "usage summary", "--json")
+	r := cchp(t, env, "", "commands", "--search", "provider keys", "--json")
 	expectOK(t, r)
 	var list struct {
 		Count    int `json:"count"`
@@ -238,7 +238,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	if err := json.Unmarshal(r.res.Data, &list); err != nil {
 		t.Fatal(err)
 	}
-	if list.Count == 0 || list.Commands[0].Operation != "getUsageSummary" || list.Commands[0].Command != "cchp usage summary" {
+	if list.Count == 0 || list.Commands[0].Operation != "listProviderKeyPage" || list.Commands[0].Command != "cchp keys list" {
 		t.Fatalf("search %+v", list)
 	}
 	r = cchp(t, env, "", "schema", "createAPIKey", "--json")
