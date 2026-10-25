@@ -1,13 +1,13 @@
 {
   "upstream": {
     "repository": "github.com/CCH-HQ/claude-code-hub-plus",
-    "tag": "v1.0.10",
-    "commit": "b0bf159de4f3d9785f297e78f206b4c3d74a869a",
+    "tag": "v1.0.12",
+    "commit": "2a00e74600bd6eaf15a887a30bbe9e4be8e23988",
     "exporter": "go run ./cmd/openapi-export"
   },
   "spec": {
     "path": "spec/upstream/control-plane.yaml",
-    "sha256": "57bcf1fc85769027d4b3e8a8800ef36fa496a1cad70667698b8c815745758eda"
+    "sha256": "fb5e5aa94a9f0b4f18882530b50b0490b11561b728901ac2582b772112e59852"
   },
   "restish": {
     "module": "github.com/rest-sh/restish/v2",

@@ -29,9 +29,9 @@ with the server.
 
 ```sh
 cchp commands --search "provider keys" --json
-cchp commands show listProviderKeys --json       # inputs, safety flags, examples
-cchp schema listProviderKeys --json              # parameters and JSON Schemas
-cchp api listProviderKeys --provider-id <id> --json
+cchp commands show listProviderKeyPage --json    # inputs, safety flags, examples
+cchp schema listProviderKeyPage --json           # parameters and JSON Schemas
+cchp api listProviderKeyPage --provider-id <id> --json
 ```
 
 Discovery uses the spec built into cchp, so it works offline.

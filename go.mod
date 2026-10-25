@@ -11,6 +11,7 @@ require (
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20261012121918-43427fdbad12
+	github.com/kljensen/snowball v0.10.0
 	github.com/pb33f/libopenapi v0.35.0
 	github.com/rest-sh/restish/v2 v2.3.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2

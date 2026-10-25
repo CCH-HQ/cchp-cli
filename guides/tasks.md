@@ -39,7 +39,7 @@ cchp providers test <provider-id>         # checks the provider answers; changes
 ## Provider keys
 
 ```
-cchp keys list <provider-id>
+cchp keys list --provider-id <provider-id>
 cchp keys disable <provider-id> <key-id>  # stop using a key for now
 cchp keys enable <provider-id> <key-id>
 cchp keys health                          # recent health of every key
