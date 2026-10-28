@@ -1,0 +1,190 @@
+{
+  "recorded_from": "http://localhost:8791",
+  "recorded_at": "2026-10-28T16:05:13Z",
+  "responses": {
+    "/llms.txt": {
+      "status": 200,
+      "file": "00.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"d19ab0d10ebc2553c2277d949c48a2eb\""
+      }
+    },
+    "/zh-CN/llms.txt": {
+      "status": 200,
+      "file": "01.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"808eedb64e67a9f6c1e64592afeef9ef\""
+      }
+    },
+    "/zh-TW/llms.txt": {
+      "status": 200,
+      "file": "02.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"f983a726af8886d1db788d228287aed6\""
+      }
+    },
+    "/en/llms.txt": {
+      "status": 200,
+      "file": "03.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"65605814223affc4756dccb09ed7efb2\""
+      }
+    },
+    "/ja/llms.txt": {
+      "status": 200,
+      "file": "04.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"e3b6260bb620307a03167625a7b8121c\""
+      }
+    },
+    "/ru/llms.txt": {
+      "status": 200,
+      "file": "05.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"90d5ab8c020e4617cf7b9a3fdd715887\""
+      }
+    },
+    "/ko/llms.txt": {
+      "status": 200,
+      "file": "06.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"27831fd236a8b194646af8ab1c2f9d16\""
+      }
+    },
+    "/en/docs/index.md": {
+      "status": 200,
+      "file": "07.gz",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"f5bb6a93cd553d958d37e71ca1d48340\""
+      }
+    },
+    "/en/docs/installation/docker-compose.md": {
+      "status": 200,
+      "file": "08.gz",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"742018ea3ba2405fd1b64ef1badea4cc\""
+      }
+    },
+    "/en/docs/installation/lan-testing.md": {
+      "status": 200,
+      "file": "09.gz",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"71c52f1354c6851df2aacbc71a563af2\""
+      }
+    },
+    "/zh-CN/docs/installation/docker-compose.md": {
+      "status": 200,
+      "file": "10.gz",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"59eaa1570e0766fbdf8247c11ad56b06\""
+      }
+    },
+    "/zh-CN/docs/providers/network-proxies.md": {
+      "status": 200,
+      "file": "11.gz",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"1c2eb899d4fdbe56ccd0aea018215262\""
+      }
+    },
+    "/zh-CN/docs/providers/keys.md": {
+      "status": 200,
+      "file": "12.gz",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"333900a47cc4ef87bedc55c0fc2c09a6\""
+      }
+    },
+    "/ja/docs/guide/codex.md": {
+      "status": 200,
+      "file": "13.gz",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"c0767dc7cd6cd1de12ae7b405ed35bcd\""
+      }
+    },
+    "/en/docs/no-such-page.md": {
+      "status": 404,
+      "file": "14.gz",
+      "headers": {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+        "ETag": "\"1449zebwtx7zpr\""
+      }
+    },
+    "/en/llms-full.txt": {
+      "status": 200,
+      "file": "15.gz",
+      "headers": {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "ETag": "\"85668d25394a06d845f34b13e625c496\""
+      }
+    },
+    "/api/docs/search?lang=zh-CN&limit=5&q=%E7%BD%91%E7%BB%9C%E4%BB%A3%E7%90%86": {
+      "status": 200,
+      "file": "16.gz",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
+      }
+    },
+    "/api/docs/search?lang=en&q=docker+compose": {
+      "status": 200,
+      "file": "17.gz",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
+      }
+    },
+    "/api/docs/search?lang=ko&limit=3&q=%ED%8C%A8%EC%8A%A4%ED%82%A4": {
+      "status": 200,
+      "file": "18.gz",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
+      }
+    },
+    "/api/docs/search?lang=en&limit=5&q=zzzqqqxxyy": {
+      "status": 200,
+      "file": "19.gz",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
+      }
+    },
+    "/api/docs/search?lang=en&q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+      "status": 400,
+      "file": "20.gz",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
+      }
+    }
+  }
+}

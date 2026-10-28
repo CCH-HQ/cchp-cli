@@ -1,5 +1,39 @@
 # Workflows
 
+## Answer a question from the docs
+
+```
+# "How do I deploy CCHP with Docker Compose?"
+cchp docs search "docker compose" --lang en --read-top 1 --json
+# 「怎么用 Docker Compose 部署 CCHP?」
+cchp docs search "Docker Compose 部署" --lang zh-CN --read-top 1 --json
+```
+
+Answer from `data.results[0].markdown` and link `data.results[0].url`. If the
+best result does not answer it, read the next ones with
+`cchp docs read <slug> --json`, or list every page with `cchp docs index --json`.
+A page missing in one language fails with `not_found` and names the languages
+that have it.
+
+## Find how to configure a feature, then do it
+
+```
+cchp docs search "network proxy" --lang en --read-top 1 --json   # how it works
+cchp commands --search "provider network proxies" --json         # which command changes it
+cchp schema saveProviderNetworkProxies --json                     # what it accepts
+cchp providers set-network-proxies <providerId> --body-file proxies.json --dry-run --json
+cchp providers set-network-proxies <providerId> --body-file proxies.json \
+  --allow-write --confirm saveProviderNetworkProxies --json
+```
+
+```
+cchp docs search 消费限额 --lang zh-CN --read-top 1 --json      # 限额怎么生效
+cchp commands --search "quota policy" --json                     # 对应的命令
+cchp billing create-quota-policy --body-file policy.json --dry-run --json
+```
+
+Only make the change when the user asked for it.
+
 ## Usage report
 
 ```
