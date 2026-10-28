@@ -81,6 +81,25 @@ change safely.
 - `--dry-run` builds the full request locally and stops before the network: it
   sends nothing, needs no credential, and masks secrets.
 
+## The docs commands
+
+`cchp docs` reads the public CCHP documentation site; it is not a CCHP
+operation and is not in the policy file. It only reads, so agent mode runs it
+without `--allow-write`.
+
+- It never reads the saved sign-in and never sends a token: requests carry only
+  `Accept` and `User-Agent`, and its own HTTP transport refuses any request
+  with an `Authorization`, `Proxy-Authorization` or `Cookie` header or a user
+  in the URL.
+- The site is `https://cch-plus.com` unless `--docs-url` or `CCHP_DOCS_URL`
+  names another origin. Plain `http://` is accepted only for this computer, so
+  pages an agent acts on cannot be altered on the way.
+- Page references must be docs pages of that site or of cch-plus.com; any other
+  host is refused.
+- Reads are retried like other reads. Cached documents are used for at most 5
+  minutes, then revalidated; a stale copy is never used when the site fails.
+- `--dry-run` prints the request and sends nothing.
+
 ## Isolation from other Restish setups
 
 cchp runs Restish with its own private, empty configuration file and cache, so

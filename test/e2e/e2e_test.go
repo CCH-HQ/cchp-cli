@@ -253,7 +253,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	}
 	r = cchp(t, env, "", "version", "--json")
 	expectOK(t, r)
-	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.12"`) {
+	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.13"`) {
 		t.Fatalf("version %s", r.res.Data)
 	}
 	expectFail(t, cchp(t, env, "", "api", "noSuchOperation", "--json"), 2, "usage")
@@ -402,6 +402,124 @@ func TestProviderKeysListPagesByProvider(t *testing.T) {
 	if len(want) != 0 {
 		t.Fatalf("keys missing from the list: %v", want)
 	}
+}
+
+type proxySet struct {
+	Mode    string `json:"mode"`
+	Proxies []struct {
+		Name        string `json:"name"`
+		Host        string `json:"host"`
+		Username    string `json:"username"`
+		HasPassword bool   `json:"hasPassword"`
+	} `json:"proxies"`
+}
+
+func readProxySet(t *testing.T, r run) proxySet {
+	t.Helper()
+	expectOK(t, r)
+	var set proxySet
+	if err := json.Unmarshal(r.res.Data, &set); err != nil {
+		t.Fatal(err)
+	}
+	return set
+}
+
+// CCHP v1.0.13 gives providers and keys their own outbound proxy lists.
+// Saving replaces the whole list, so it needs --confirm; passwords go to the
+// server, never back out, and a dry run masks them.
+func TestNetworkProxiesReplaceTheListAndNeverShowPasswords(t *testing.T) {
+	s := newSession(t)
+	provider := createProvider(t, s, fmt.Sprintf("Proxies %d", time.Now().UnixNano()))
+	key := createProviderKey(t, s, provider, "proxied")
+	const password = "pw-e2e-never-shown"
+	body := `{"mode":"failover","proxies":[{"name":"office","scheme":"http","host":"127.0.0.1","port":3128,"username":"u","password":"` + password + `"}]}`
+
+	if set := readProxySet(t, s.run(t, "", "providers", "network-proxies", provider)); len(set.Proxies) != 0 {
+		t.Fatalf("a new provider follows the global proxy: %+v", set)
+	}
+	expectFail(t, s.run(t, body, "providers", "set-network-proxies", provider, "--body-file", "-", "--allow-write"), 13, "policy")
+	dry := s.run(t, body, "providers", "set-network-proxies", provider, "--body-file", "-", "--dry-run")
+	expectOK(t, dry)
+	if strings.Contains(dry.stdout, password) || !strings.Contains(string(dry.res.DryRun.Body), `"password":"[redacted]"`) {
+		t.Fatalf("dry run body %s", dry.res.DryRun.Body)
+	}
+	saved := s.run(t, body, "providers", "set-network-proxies", provider, "--body-file", "-", "--allow-write", "--confirm", "saveProviderNetworkProxies")
+	set := readProxySet(t, saved)
+	if saved.res.Outcome != "applied" || len(set.Proxies) != 1 || !set.Proxies[0].HasPassword || set.Proxies[0].Username != "u" || strings.Contains(saved.stdout, password) {
+		t.Fatalf("saved %s", saved.stdout)
+	}
+	shown := s.run(t, "", "providers", "network-proxies", provider)
+	if set := readProxySet(t, shown); len(set.Proxies) != 1 || set.Proxies[0].Name != "office" || strings.Contains(shown.stdout, password) {
+		t.Fatalf("provider proxies %s", shown.stdout)
+	}
+
+	if set := readProxySet(t, s.run(t, "", "keys", "network-proxies", provider, key)); len(set.Proxies) != 0 {
+		t.Fatalf("a new key follows its provider: %+v", set)
+	}
+	keySaved := s.run(t, body, "keys", "set-network-proxies", provider, key, "--body-file", "-", "--allow-write", "--confirm", "saveProviderKeyNetworkProxies")
+	if set := readProxySet(t, keySaved); len(set.Proxies) != 1 || !set.Proxies[0].HasPassword {
+		t.Fatalf("key proxies %s", keySaved.stdout)
+	}
+	cleared := s.run(t, `{"mode":"failover","proxies":[]}`, "keys", "set-network-proxies", provider, key, "--body-file", "-", "--allow-write", "--confirm", "saveProviderKeyNetworkProxies")
+	if set := readProxySet(t, cleared); len(set.Proxies) != 0 {
+		t.Fatalf("an empty list makes the key follow its provider again: %s", cleared.stdout)
+	}
+	if set := readProxySet(t, s.run(t, "", "admin", "network-proxy")); set.Mode == "" {
+		t.Fatalf("global proxy %+v", set)
+	}
+}
+
+func TestStorageTestDryRunMasksTheSecretKey(t *testing.T) {
+	s := newSession(t)
+	body := `{"backend":"s3","s3_bucket":"b","s3_region":"us-east-1","s3_endpoint":"https://s3.example.com","s3_access_key_id":"AKIAE2E","s3_secret_access_key":"sak-e2e-never-shown"}`
+	r := s.run(t, body, "org", "test-storage", "--body-file", "-", "--dry-run")
+	expectOK(t, r)
+	if strings.Contains(r.stdout, "sak-e2e-never-shown") || !strings.Contains(string(r.res.DryRun.Body), `"s3_secret_access_key":"[redacted]"`) ||
+		!strings.Contains(string(r.res.DryRun.Body), `"s3_access_key_id":"AKIAE2E"`) {
+		t.Fatalf("dry run body %s", r.res.DryRun.Body)
+	}
+}
+
+// The other reads CCHP v1.0.13 added answer a management token.
+func TestReadsAddedInV1013(t *testing.T) {
+	s := newSession(t)
+	r := s.run(t, "", "account", "bootstrap", "--locale", "en-US")
+	expectOK(t, r)
+	var boot struct {
+		Me struct {
+			TokenKind string `json:"tokenKind"`
+		} `json:"me"`
+		Permissions map[string]any `json:"permissions"`
+	}
+	if err := json.Unmarshal(r.res.Data, &boot); err != nil {
+		t.Fatal(err)
+	}
+	if boot.Me.TokenKind == "" || boot.Permissions == nil {
+		t.Fatalf("bootstrap %s", r.res.Data)
+	}
+	expectOK(t, s.run(t, "", "account", "sidebar"))
+
+	r = s.run(t, `{"requests":[{"path":"/api/account/usage/summary","query":"range=24h"},{"path":"/api/account/usage/view-policy","query":""}]}`, "usage", "batch", "--body-file", "-")
+	expectOK(t, r)
+	var batch struct {
+		Results []struct {
+			Status int `json:"status"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(r.res.Data, &batch); err != nil {
+		t.Fatal(err)
+	}
+	if len(batch.Results) != 2 || batch.Results[0].Status != 200 || batch.Results[1].Status != 200 {
+		t.Fatalf("usage batch answers each query: %s", r.stdout)
+	}
+
+	r = s.run(t, "", "billing", "org-billing")
+	expectOK(t, r)
+	if !strings.Contains(string(r.res.Data), `"cap":{`) {
+		t.Fatalf("org billing shows the organization's credit limit: %s", r.res.Data)
+	}
+	expectOK(t, s.run(t, "", "admin", "web-vitals", "--hours", "24"))
+	expectOK(t, s.run(t, "", "models", "price-table-sync"))
 }
 
 func TestPermissionDenied(t *testing.T) {

@@ -54,6 +54,11 @@ components:
         createdAt:
           description: 创建时间(RFC3339)
           type: string
+        effectivePermissions:
+          description: 此刻实际可用的权限(<resource>:<action>):授予形式按当前权限目录展开,与持有人当前持有的权限取交集;平台级权限只在持有人是平台管理员时计入;已吊销或已过期的 token 为空
+          items:
+            type: string
+          type: array
         expiresAt:
           description: 过期时间(RFC3339)
           type: string
@@ -67,7 +72,7 @@ components:
           description: Token 名称
           type: string
         permissions:
-          description: 授予的权限集合(<resource>:<action>)
+          description: 授予形式列表:* = 全部权限(含以后新增的模块);<resource>:* = 该模块全部权限(含该模块以后新增的动作);<resource>:<action> = 单项权限(创建后不变)
           items:
             type: string
           type: array
@@ -102,6 +107,7 @@ components:
         - scope
         - status
         - permissions
+        - effectivePermissions
         - createdAt
       type: object
     AccountAvatarOutputBody:
@@ -119,6 +125,50 @@ components:
           type: string
       required:
         - avatar_url
+      type: object
+    AccountBootstrapView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/AccountBootstrapView.json
+          format: uri
+          readOnly: true
+          type: string
+        announcementPopup:
+          $ref: "#/components/schemas/AnnouncementView"
+          description: 与 GET /api/account/announcements/popup 相同(locale 取本请求的):没有需要弹出的公告(204)或不能读公告时为 null
+        announcements:
+          $ref: "#/components/schemas/AnnouncementPageBody"
+          description: 与 GET /api/account/announcements?page=1&pageSize=20 相同(locale 取本请求的);管理凭据没有 announcement:read 时与 LLM Token 只读会话为 null
+        featureFlags:
+          $ref: "#/components/schemas/AccountFeatureFlagsOutputBody"
+          description: 与 GET /api/account/feature-flags 相同
+        me:
+          $ref: "#/components/schemas/MeOutputBody"
+          description: 与 GET /api/account/me 相同
+        notifications:
+          $ref: "#/components/schemas/UserNotificationListBody"
+          description: 与 GET /api/account/notifications?limit=30 相同;管理凭据与 LLM Token 只读会话为 null
+        permissions:
+          $ref: "#/components/schemas/PermissionSummaryView"
+          description: 与不带 teamId 的 GET /api/account/permissions/summary 相同;LLM Token 只读会话为 null
+        preferences:
+          $ref: "#/components/schemas/AccountPreferencesView"
+          description: 与 GET /api/account/preferences 相同;管理凭据没有 account:read 时与 LLM Token 只读会话为 null
+        sidebar:
+          $ref: "#/components/schemas/ConsoleSidebarView"
+          description: 与 GET /api/account/console/sidebar 相同;LLM Token 只读会话为 null
+      required:
+        - me
+        - permissions
+        - featureFlags
+        - preferences
+        - sidebar
+        - notifications
+        - announcements
+        - announcementPopup
       type: object
     AccountCallbackPath:
       additionalProperties: false
@@ -1435,10 +1485,10 @@ components:
           description: 是否走 mapi.php 输出二维码
           type: boolean
         epayType:
-          description: 易支付透传给收银台的 type 参数;method=custom 时必填
+          description: 易支付透传给收银台的 type 参数,即服务商后台支付方式的调用值(如 qqpay、bank、usdt):去掉首尾空白后为 1 到 30 个字母、数字、下划线、点或连字符;method=custom 时必填;method=epay 时可选,留空由付款人在收银台选择;更新时空串清除、省略保持现值
           type: string
         extraMethods:
-          description: 主支付方式之外同时开通的支付产品(wechatpay:wechat_native / wechat_h5 / wechat_jsapi;alipay:alipay_page / alipay_wap / alipay_f2f);下单时按付款人的浏览器选择;更新时空数组清除、省略保持现值
+          description: 主支付方式之外同时开通的支付产品(wechatpay:wechat_native / wechat_h5 / wechat_jsapi / wechat_app,wechat_app 与 wechat_jsapi 不能同时开通;alipay:alipay_page / alipay_wap / alipay_f2f / alipay_app);下单时按付款人的浏览器选择;更新时空数组清除、省略保持现值
           items:
             type: string
           type: array
@@ -2243,13 +2293,13 @@ components:
       required:
         - enabled
       type: object
-    AnnouncementPageOutputBody:
+    AnnouncementPageBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/AnnouncementPageOutputBody.json
+            - //api/schemas/AnnouncementPageBody.json
           format: uri
           readOnly: true
           type: string
@@ -2462,6 +2512,9 @@ components:
           format: uri
           readOnly: true
           type: string
+        allGrantable:
+          description: 调用方可以授予全部权限(*,含以后新增的模块):持有目录此刻的全部动作(含平台级动作,只有平台管理员);经管理 token 调用时该 token 本身须授予了全部权限
+          type: boolean
         maxLifetimeDays:
           description: 当前组织生效的最长有效期(天);0 表示不设上限
           format: int64
@@ -2473,6 +2526,7 @@ components:
           type: array
       required:
         - modules
+        - allGrantable
         - maxLifetimeDays
       type: object
     ApiKeyPermissionModuleView:
@@ -2482,12 +2536,24 @@ components:
           items:
             $ref: "#/components/schemas/ApiKeyPermissionActionView"
           type: array
+        grantable:
+          description: 调用方可以授予整个模块(<resource>:*,含该模块以后新增的动作):持有该模块此刻的全部动作;经管理 token 调用时该 token 本身须授予了整个模块或全部权限
+          type: boolean
         resource:
           description: 模块(Casbin 资源名)
           type: string
       required:
         - resource
+        - grantable
         - actions
+      type: object
+    AppParams:
+      additionalProperties: false
+      properties:
+        alipayOrderString:
+          type: string
+        wechat:
+          $ref: "#/components/schemas/WechatAppParams"
       type: object
     ApplyPresetResult:
       additionalProperties: false
@@ -2601,6 +2667,25 @@ components:
         - version
         - params
         - locale
+      type: object
+    ApproveSessionTransferOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/ApproveSessionTransferOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          description: 一次性接力码，一分钟内有效：只放进目标域名 /login 页面的地址片段(#transfer=…)
+          type: string
+        target_origin:
+          type: string
+      required:
+        - target_origin
+        - code
       type: object
     ArchiveDestinationBackfillRequest:
       additionalProperties: false
@@ -4016,6 +4101,124 @@ components:
           type: array
       required:
         - items
+      type: object
+    Beacon:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/Beacon.json
+          format: uri
+          readOnly: true
+          type: string
+        browser:
+          type: string
+        build:
+          type: string
+        connection:
+          type: string
+        device:
+          type: string
+        document:
+          type: string
+        metrics:
+          items:
+            $ref: "#/components/schemas/BeaconMetric"
+          type: array
+      required:
+        - build
+        - document
+        - device
+        - browser
+        - connection
+        - metrics
+      type: object
+    BeaconMetric:
+      additionalProperties: false
+      properties:
+        attribution:
+          items:
+            $ref: "#/components/schemas/BeaconScript"
+          type: array
+        bfcache:
+          type: boolean
+        name:
+          type: string
+        navigation:
+          type: string
+        route:
+          type: string
+        value:
+          format: double
+          type: number
+      required:
+        - name
+        - value
+        - route
+        - navigation
+        - bfcache
+      type: object
+    BeaconScript:
+      additionalProperties: false
+      properties:
+        duration:
+          format: double
+          type: number
+        function:
+          type: string
+        invoker:
+          type: string
+        script:
+          type: string
+      required:
+        - script
+        - function
+        - duration
+        - invoker
+      type: object
+    BeginSessionTransferInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/BeginSessionTransferInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        return_to:
+          default: /app
+          description: 接力完成后在本域名打开的站内路径
+          maxLength: 2048
+          type: string
+        source_origin:
+          description: 用户已经登录的域名(origins 列出的源站之一)
+          maxLength: 300
+          minLength: 1
+          type: string
+      required:
+        - source_origin
+      type: object
+    BeginSessionTransferOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/BeginSessionTransferOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+        request:
+          description: 接力请求值：只放进来源域名 /session-transfer 页面的地址片段(#request=…),不放进查询串
+          type: string
+      required:
+        - request
+        - expires_at
       type: object
     BillingAttemptExplanation:
       additionalProperties: false
@@ -5484,6 +5687,7 @@ components:
             - length
             - scope
             - length_scope
+            - literal
           type: string
         plugin:
           type: string
@@ -6578,6 +6782,10 @@ components:
           type: boolean
         has_published_local_assignment:
           type: boolean
+        inherited_field_sources:
+          additionalProperties:
+            type: string
+          type: object
         inherited_preview: {}
         key:
           type: string
@@ -6882,6 +7090,22 @@ components:
         - type
         - count
       type: object
+    ConsoleSidebarView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/ConsoleSidebarView.json
+          format: uri
+          readOnly: true
+          type: string
+        sidebar:
+          $ref: "#/components/schemas/SidebarLayout"
+          description: 当前组织生效的侧栏布局(site.sidebar):组织声明了取组织值，否则取全局值;「管理」分组只来自全局值，只返回给平台管理员
+      required:
+        - sidebar
+      type: object
     ContextSet:
       additionalProperties: false
       properties:
@@ -7012,7 +7236,7 @@ components:
           minLength: 1
           type: string
         permissions:
-          description: 授予的权限集合(<resource>:<action>,取自权限目录)
+          description: 授予形式列表(取自权限目录):<resource>:<action> 单项;<resource>:* 整个模块,含该模块以后新增的动作;* 全部权限,含以后新增的模块。列出一个模块此刻的全部动作等同于该模块授予,列出目录此刻的全部动作等同于全部授予(调用方能记录该形式时)
           items:
             type: string
           minItems: 1
@@ -7426,6 +7650,9 @@ components:
           minLength: 1
           type: string
         retryable:
+          type: boolean
+        stopFailover:
+          description: 命中后不再切换候选
           type: boolean
       required:
         - name
@@ -8427,6 +8654,19 @@ components:
           format: uri
           readOnly: true
           type: string
+        billingMode:
+          description: 首个组织的计费方式:prepaid = 预付费(充值后使用,余额不足即拒绝请求);postpaid = 后付费(无需充值,受月度授信额度上限约束)
+          enum:
+            - prepaid
+            - postpaid
+          type: string
+        monthlyOverdraftLimitUnits:
+          description: 组织的月度授信额度上限(credit units),每月 1 日(UTC)重置;null = 不封顶。只能在后付费时设置
+          format: int64
+          minimum: 0
+          type:
+            - integer
+            - "null"
         orgName:
           maxLength: 255
           minLength: 1
@@ -8438,6 +8678,8 @@ components:
       required:
         - orgName
         - teamName
+        - billingMode
+        - monthlyOverdraftLimitUnits
       type: object
     CreateSetupOrgOutputBody:
       additionalProperties: false
@@ -9015,6 +9257,21 @@ components:
         failures: {}
         stages: {}
         summary: {}
+      type: object
+    DeclineSessionTransferOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/DeclineSessionTransferOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        target_origin:
+          type: string
+      required:
+        - target_origin
       type: object
     DefaultMailTemplateOutputBody:
       additionalProperties: false
@@ -9959,7 +10216,7 @@ components:
           $ref: "#/components/schemas/EndpointProbeTimingsView"
           description: 各阶段耗时(毫秒)
         via_proxy:
-          description: 是否经出站代理建立隧道:端点 scope 链上的 gateway.network_policy.proxy_url,没有时用端点自身的代理
+          description: 是否经出站代理建立隧道:供应商的代理组(没有时取它最早创建、设了代理组的启用密钥的代理组),都没有时是全局代理
           type: boolean
       required:
         - status
@@ -10244,6 +10501,8 @@ components:
         statusCode:
           format: int64
           type: integer
+        stopFailover:
+          type: boolean
       required:
         - matched
       type: object
@@ -10325,6 +10584,9 @@ components:
           type: string
         retryable:
           type: boolean
+        stopFailover:
+          description: 命中后不再切换候选:请求以这次的错误结束,客户端立即收到上游错误(或覆盖后的状态码与消息)
+          type: boolean
         updatedAt:
           format: date-time
           type: string
@@ -10336,6 +10598,7 @@ components:
         - pattern
         - category
         - retryable
+        - stopFailover
         - priority
         - metadata
         - createdAt
@@ -10676,6 +10939,15 @@ components:
           format: uri
           readOnly: true
           type: string
+        invitation_token:
+          description: 邀请邮件里的邀请凭据;注册关闭时须是发给这个邮箱、仍待接受且未过期的邀请
+          maxLength: 64
+          type: string
+          writeOnly: true
+        invite_code:
+          description: 邀请链接带来的组织或团队邀请码;注册关闭时须是启用中、未过期、未用完的码
+          maxLength: 16
+          type: string
         organization_id:
           maxLength: 128
           minLength: 1
@@ -10696,6 +10968,15 @@ components:
             - //api/schemas/FederationStartInputBody.json
           format: uri
           readOnly: true
+          type: string
+        invitation_token:
+          description: 邀请邮件里的邀请凭据;注册关闭时须是发给这个邮箱、仍待接受且未过期的邀请
+          maxLength: 64
+          type: string
+          writeOnly: true
+        invite_code:
+          description: 邀请链接带来的组织或团队邀请码;注册关闭时须是启用中、未过期、未用完的码
+          maxLength: 16
           type: string
         return_to:
           default: /app
@@ -10886,6 +11167,7 @@ components:
             - user
             - api_key
             - provider
+            - provider_key
             - endpoint
             - model
             - status_code
@@ -11645,6 +11927,65 @@ components:
       required:
         - user
         - memberships
+      type: object
+    GlobalNetworkProxyInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/GlobalNetworkProxyInput.json
+          format: uri
+          readOnly: true
+          type: string
+        chainProviderProxies:
+          description: 供应商与供应商密钥的代理服务器是否经全局代理连接(默认关闭)
+          type: boolean
+        mode:
+          description: 挑选方式
+          enum:
+            - failover
+            - random
+          type: string
+        proxies:
+          description: 有序的代理;空数组表示没有全局代理
+          items:
+            $ref: "#/components/schemas/NetworkProxyInput"
+          maxItems: 16
+          type: array
+      required:
+        - mode
+        - proxies
+        - chainProviderProxies
+      type: object
+    GlobalNetworkProxyView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/GlobalNetworkProxyView.json
+          format: uri
+          readOnly: true
+          type: string
+        chainProviderProxies:
+          description: 供应商与供应商密钥的代理服务器是否经全局代理连接
+          type: boolean
+        mode:
+          description: 挑选方式
+          enum:
+            - failover
+            - random
+          type: string
+        proxies:
+          description: 有序的代理;为空表示没有全局代理
+          items:
+            $ref: "#/components/schemas/NetworkProxyView"
+          type: array
+      required:
+        - mode
+        - proxies
+        - chainProviderProxies
       type: object
     GrantAdjustmentCatalogPackageView:
       additionalProperties: false
@@ -13002,6 +13343,9 @@ components:
           type:
             - string
             - "null"
+        origin:
+          description: 只在浏览器会话中出现：签发会话的控制台地址(公开地址或绑定的域名),会话只在这个地址有效
+          type: string
         token_name:
           type: string
         token_prefix:
@@ -13107,6 +13451,30 @@ components:
           $ref: "#/components/schemas/AdminManifestPreviewView"
       required:
         - preview
+      type: object
+    InspectSessionTransferOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/InspectSessionTransferOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+        organization_name:
+          description: 两个域名所属的组织
+          type: string
+        target_origin:
+          description: 请求在这个域名上登录
+          type: string
+      required:
+        - target_origin
+        - organization_name
+        - expires_at
       type: object
     InstallationView:
       additionalProperties: false
@@ -15096,8 +15464,13 @@ components:
           items:
             $ref: "#/components/schemas/ProviderKeyBulkJobView"
           type: array
+        serverTime:
+          description: 判定列表时服务端的当前时刻;visibleUntil 减去它是结束的任务还会留在列表里的时长
+          format: date-time
+          type: string
       required:
         - jobs
+        - serverTime
       type: object
     ListProviderKeysUpstreamStatesOutputBody:
       additionalProperties: false
@@ -15203,6 +15576,9 @@ components:
           type:
             - string
             - "null"
+        writable:
+          description: 同时按 scopeType 与 scopeId 过滤时给出:调用方按层级规则能否设置这个 scope 的限额(organization 只有平台管理员;organization_member 与 team 是组织管理员;user 是用户所在团队及上级团队的团队管理员与组织管理员);写入另需 quota_policy:write
+          type: boolean
       required:
         - items
         - nextCursor
@@ -16399,7 +16775,7 @@ components:
           $ref: "#/components/schemas/QuotaLimitsInput"
           description: 创建时一并保存的限额(user_key scope);省略或全 0 = 不创建限额策略;非空时需要 quota_policy:write
         name:
-          description: LLM token 名称(如 my-app-prod)
+          description: LLM token 名称(如 my-app-prod);去掉首尾空白后 1–128 个字符,不含换行等控制字符
           type: string
         privacyFilterUpstreamEnabled:
           description: 发往上游的请求是否应用隐私过滤;省略 = 沿用默认值
@@ -16541,7 +16917,7 @@ components:
             - string
             - "null"
         name:
-          description: token 名称
+          description: token 名称;规则与创建相同(去掉首尾空白后 1–128 个字符,不含换行等控制字符);已吊销的 token 不能改名(409);省略 = 不改动
           type: string
         privacyFilterUpstreamEnabled:
           description: 发往上游的请求是否应用隐私过滤
@@ -17316,7 +17692,7 @@ components:
         tokenSession:
           $ref: "#/components/schemas/MeTokenSession"
         user:
-          $ref: "#/components/schemas/UserStruct"
+          $ref: "#/components/schemas/MeOutputBodyUserStruct"
       required:
         - user
         - csrf_token
@@ -17325,6 +17701,32 @@ components:
         - defaultOrganizationId
         - activeTeamId
         - boundKeyId
+      type: object
+    MeOutputBodyUserStruct:
+      additionalProperties: false
+      properties:
+        avatarUrl:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+        emailVerified:
+          type: boolean
+        id:
+          type: string
+        isPlatformAdmin:
+          type: boolean
+        passwordChangeRequired:
+          type: boolean
+      required:
+        - id
+        - email
+        - displayName
+        - avatarUrl
+        - isPlatformAdmin
+        - emailVerified
+        - passwordChangeRequired
       type: object
     MeTokenSession:
       additionalProperties: false
@@ -17385,7 +17787,7 @@ components:
           minimum: 1
           type: integer
         confirmBelowFloor:
-          description: 减少后余额低于组织透支规则允许的最低余额时,管理员确认仍然执行
+          description: 减少后余额低于钱包允许的最低余额时,管理员确认仍然执行
           type: boolean
         direction:
           description: increase = 增加余额;decrease = 减少余额
@@ -17460,11 +17862,9 @@ components:
           format: int64
           type: integer
         floorUnits:
-          description: 组织透支规则允许的最低余额:预付费为可用额不低于 0 时的余额,后付费受成员本月剩余的超刷额度约束;null = 不封顶
+          description: 钱包允许的最低余额:可用额(余额 − 在途预扣)不低于 0 时的余额。后付费组织的请求不经过成员钱包,同一规则
           format: int64
-          type:
-            - integer
-            - "null"
+          type: integer
         wallet:
           $ref: "#/components/schemas/MemberBillingWalletView"
           description: 调整前的钱包
@@ -17563,7 +17963,7 @@ components:
             - integer
             - "null"
         belowFloorConfirmed:
-          description: 余额减少越过组织透支规则的下限,管理员已确认
+          description: 余额减少越过钱包允许的最低余额,管理员已确认
           type: boolean
         deltaUnits:
           description: 对钱包余额的影响(负 = 扣减)
@@ -17623,7 +18023,7 @@ components:
           type: boolean
         billing:
           $ref: "#/components/schemas/WalletBillingView"
-          description: 组织的计费方式与成员本月的超刷额度
+          description: 组织的计费方式与组织授信额度
         blockedReason:
           description: 不能执行时的原因:self = 组织管理员不能对本人执行;platform_admin = 目标是平台管理员;higher_role = 目标的组织角色高于调用方
           enum:
@@ -19434,10 +19834,10 @@ components:
       additionalProperties: false
       properties:
         message:
-          description: 上游错误说明(已去除凭据);重定向被拒绝时是重定向目标的 scheme://host[:port]
+          description: 上游错误说明(已去除凭据);重定向被拒绝时是重定向目标的 scheme://host[:port];sync_error 时是错误信息
           type: string
         reason:
-          description: 原因码:missing_secret / endpoint_unavailable / model_list_unsupported / request_unrenderable / url_blocked / proxy_invalid / connect_error / timeout / ssrf_blocked / redirect_blocked / redirect_cross_site / redirect_downgrade / redirect_limit / upstream_auth / upstream_4xx / upstream_5xx / upstream_unexpected / read_failed / too_large / unparseable / no_models / key_unavailable / key_busy / redirect_locked
+          description: 原因码:missing_secret / endpoint_unavailable / model_list_unsupported / request_unrenderable / url_blocked / proxy_invalid / connect_error / timeout / ssrf_blocked / redirect_blocked / redirect_cross_site / redirect_downgrade / redirect_limit / upstream_auth / upstream_4xx / upstream_5xx / upstream_unexpected / read_failed / too_large / unparseable / no_models / key_unavailable / key_busy / redirect_locked / sync_error(读取、计算或写入这把密钥时出错)/ run_interrupted(执行副本多次中途退出,同步记为失败时这把密钥还没有处理)
           type: string
         status:
           description: 上游 HTTP 状态(重定向被拒绝时是那一跳的 3xx);没有拿到响应时为 0
@@ -21128,7 +21528,7 @@ components:
         id:
           type: string
         name:
-          description: 请求时的密钥名称
+          description: 密钥的当前名称;密钥已不在时为请求时的名称
           type:
             - string
             - "null"
@@ -21378,6 +21778,244 @@ components:
         - output
         - cacheRead
         - cacheWrite
+      type: object
+    NetworkProxyInput:
+      additionalProperties: false
+      properties:
+        host:
+          description: 代理主机名或 IP
+          maxLength: 255
+          minLength: 1
+          type: string
+        id:
+          description: 已保存代理的 ID;新代理省略(服务端生成)
+          maxLength: 64
+          type: string
+        name:
+          description: 代理名称
+          maxLength: 64
+          type: string
+        password:
+          description: 认证密码;省略 = 沿用已保存的密码(地址与用户名不变时),空串 = 不用密码
+          maxLength: 255
+          type: string
+        port:
+          description: 代理端口
+          format: int64
+          maximum: 65535
+          minimum: 1
+          type: integer
+        scheme:
+          description: 代理协议
+          enum:
+            - http
+            - https
+            - socks5
+            - socks5h
+          type: string
+        skipTlsVerify:
+          description: https 代理:不校验代理服务器的证书
+          type: boolean
+        username:
+          description: 认证用户名
+          maxLength: 255
+          type: string
+      required:
+        - scheme
+        - host
+        - port
+      type: object
+    NetworkProxySetInput:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/NetworkProxySetInput.json
+          format: uri
+          readOnly: true
+          type: string
+        mode:
+          description: 挑选方式
+          enum:
+            - failover
+            - random
+          type: string
+        proxies:
+          description: 有序的代理;空数组表示不设自己的代理
+          items:
+            $ref: "#/components/schemas/NetworkProxyInput"
+          maxItems: 16
+          type: array
+      required:
+        - mode
+        - proxies
+      type: object
+    NetworkProxySetView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/NetworkProxySetView.json
+          format: uri
+          readOnly: true
+          type: string
+        mode:
+          description: 挑选方式:failover 按顺序用第一个可用的代理;random 每个请求随机挑选
+          enum:
+            - failover
+            - random
+          type: string
+        proxies:
+          description: 有序的代理;为空表示没有自己的代理
+          items:
+            $ref: "#/components/schemas/NetworkProxyView"
+          type: array
+      required:
+        - mode
+        - proxies
+      type: object
+    NetworkProxyTestBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/NetworkProxyTestBody.json
+          format: uri
+          readOnly: true
+          type: string
+        proxies:
+          description: 要测试的代理(未保存的修改也可以测试;省略 password 的已保存代理用已保存的密码)
+          items:
+            $ref: "#/components/schemas/NetworkProxyInput"
+          maxItems: 16
+          minItems: 1
+          type: array
+        targetUrl:
+          description: 测试请求的地址(http 或 https);省略时供应商与密钥的代理测试供应商的第一个启用端点,全局代理测试一个公共连通性检查地址
+          maxLength: 2048
+          type: string
+      required:
+        - proxies
+      type: object
+    NetworkProxyTestResultView:
+      additionalProperties: false
+      properties:
+        address:
+          description: 代理的 scheme://host:port(不含凭据)
+          type: string
+        failure:
+          description: 失败的阶段
+          enum:
+            - proxy_unreachable
+            - proxy_tls
+            - proxy_auth
+            - proxy_protocol
+            - target_refused
+            - target_blocked
+            - target_unreachable
+            - timeout
+          type: string
+        index:
+          description: 请求里代理的下标
+          format: int64
+          type: integer
+        latencyMs:
+          description: 从开始连接到收到应答头的毫秒数
+          format: int64
+          type: integer
+        message:
+          description: 失败说明
+          type: string
+        ok:
+          description: 是否经这个代理拿到了目标的 HTTP 应答
+          type: boolean
+        proxyId:
+          description: 已保存代理的 ID(新代理为空)
+          type: string
+        statusCode:
+          description: 目标的 HTTP 状态码
+          format: int64
+          type: integer
+      required:
+        - index
+        - address
+        - ok
+        - latencyMs
+      type: object
+    NetworkProxyTestView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/NetworkProxyTestView.json
+          format: uri
+          readOnly: true
+          type: string
+        results:
+          description: 按请求顺序的每个代理的结果
+          items:
+            $ref: "#/components/schemas/NetworkProxyTestResultView"
+          type: array
+        targetUrl:
+          description: 测试请求的地址
+          type: string
+        via:
+          description: 供应商代理经全局代理连接时,全局代理的地址
+          items:
+            type: string
+          type: array
+      required:
+        - targetUrl
+        - results
+      type: object
+    NetworkProxyView:
+      additionalProperties: false
+      properties:
+        hasPassword:
+          description: 是否保存了认证密码(密码不回显)
+          type: boolean
+        host:
+          description: 代理主机名或 IP
+          type: string
+        id:
+          description: 代理在代理组里的稳定 ID(服务端生成)
+          type: string
+        name:
+          description: 代理名称(可空)
+          type: string
+        port:
+          description: 代理端口
+          format: int64
+          maximum: 65535
+          minimum: 1
+          type: integer
+        scheme:
+          description: 代理协议
+          enum:
+            - http
+            - https
+            - socks5
+            - socks5h
+          type: string
+        skipTlsVerify:
+          description: https 代理:不校验代理服务器的证书(到上游的 TLS 照常校验)
+          type: boolean
+        username:
+          description: 认证用户名(可空)
+          type: string
+      required:
+        - id
+        - name
+        - scheme
+        - host
+        - port
+        - username
+        - hasPassword
+        - skipTlsVerify
       type: object
     NodeBasicInfoView:
       additionalProperties: false
@@ -21790,14 +22428,14 @@ components:
           readOnly: true
           type: string
         billingMode:
-          description: prepaid = 预付费(默认,余额覆盖预扣才放行);postpaid = 后付费(余额可以为负,受月度超刷限额约束)
+          description: prepaid = 预付费(默认,成员钱包与套餐承担请求);postpaid = 后付费(请求记在组织的后付费账户上,受组织授信额度上限约束)
           enum:
             - prepaid
             - postpaid
           type: string
-        organization:
-          $ref: "#/components/schemas/OverdraftLevelView"
-          description: 组织层级的月度超刷限额与本月用量
+        cap:
+          $ref: "#/components/schemas/OverdraftCapView"
+          description: 组织授信额度上限与本月用量(只在后付费时生效)
         periodEnd:
           description: 当前计量月份的终点
           type: string
@@ -21808,7 +22446,7 @@ components:
         - billingMode
         - periodStart
         - periodEnd
-        - organization
+        - cap
       type: object
     OrgDetailView:
       additionalProperties: false
@@ -22237,102 +22875,34 @@ components:
         - depth
         - children
       type: object
-    OverdraftLevelView:
+    OverdraftCapView:
       additionalProperties: false
       properties:
         drawnUnits:
-          description: 本月已结算的超刷
+          description: 组织本月已结算的后付费消费
           format: int64
           type: integer
         heldUnits:
-          description: 在途请求预扣中的超刷
+          description: 组织进行中请求的后付费预扣
           format: int64
           type: integer
-        level:
-          description: 层级
-          enum:
-            - organization
-            - team
-            - user
-          type: string
         limitUnits:
-          description: 本月超刷上限(credit units,1 = 1e-10 USD);null = 不封顶
+          description: 组织本月的授信额度上限(credit units,1 = 1e-10 USD),每月 1 日(UTC)重置;null = 不封顶
           format: int64
           type:
             - integer
             - "null"
         remainingUnits:
-          description: 本月剩余的超刷额度;null = 不封顶
+          description: 本月剩余的授信额度;null = 不封顶
           format: int64
           type:
             - integer
             - "null"
-        scopeId:
-          description: 层级对象 ID(组织、团队或成员的用户 ID)
-          type: string
       required:
-        - level
-        - scopeId
         - limitUnits
         - heldUnits
         - drawnUnits
         - remainingUnits
-      type: object
-    OverdraftLimitBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - //api/schemas/OverdraftLimitBody.json
-          format: uri
-          readOnly: true
-          type: string
-        monthlyLimitUnits:
-          description: 月度超刷限额(credit units);null = 不单独封顶(仍受团队与组织限额约束)
-          format: int64
-          minimum: 0
-          type:
-            - integer
-            - "null"
-      required:
-        - monthlyLimitUnits
-      type: object
-    OverdraftLimitView:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - //api/schemas/OverdraftLimitView.json
-          format: uri
-          readOnly: true
-          type: string
-        billingMode:
-          description: 组织的计费方式;预付费时团队与成员限额不生效、不可修改
-          enum:
-            - prepaid
-            - postpaid
-          type: string
-        limit:
-          $ref: "#/components/schemas/OverdraftLevelView"
-          description: 本层级的月度超刷限额与本月用量
-        organizationLimitUnits:
-          description: 组织的月度超刷限额(团队与成员限额的上限);null = 不封顶
-          format: int64
-          type:
-            - integer
-            - "null"
-        periodEnd:
-          type: string
-        periodStart:
-          type: string
-      required:
-        - billingMode
-        - periodStart
-        - periodEnd
-        - organizationLimitUnits
-        - limit
       type: object
     Override:
       additionalProperties: false
@@ -23834,6 +24404,149 @@ components:
           format: uri
           type: string
       type: object
+    PricingCatalogSyncResultView:
+      additionalProperties: false
+      properties:
+        aliases_written:
+          format: int64
+          type: integer
+        charges_written:
+          format: int64
+          type: integer
+        document_bytes:
+          description: 价格表响应体(gzip 解压后)字节数
+          format: int64
+          type: integer
+        document_limit_bytes:
+          description: 价格表响应体体积上限
+          format: int64
+          type: integer
+        import_ms:
+          description: 导入耗时(毫秒)
+          format: int64
+          type: integer
+        model_count:
+          description: 价格表中的模型数
+          format: int64
+          type: integer
+        models_created:
+          format: int64
+          type: integer
+        models_disabled:
+          format: int64
+          type: integer
+        models_skipped_manual:
+          format: int64
+          type: integer
+        models_unpriced:
+          format: int64
+          type: integer
+        models_updated:
+          format: int64
+          type: integer
+        outcome:
+          description: updated = 导入了新版本;unchanged = 版本未变;disabled = 自动同步已关闭;too_large = 超过体积上限;invalid = 文档不合法;fetch_failed = 拉取失败;import_failed = 导入失败
+          enum:
+            - updated
+            - unchanged
+            - disabled
+            - too_large
+            - invalid
+            - fetch_failed
+            - import_failed
+          type: string
+        rows_written:
+          description: 导入实际新建、改写或删除的行数
+          format: int64
+          type: integer
+        tracks_written:
+          format: int64
+          type: integer
+        version:
+          description: 拉到的价格表 version
+          type: string
+      required:
+        - outcome
+        - document_bytes
+        - document_limit_bytes
+        - model_count
+        - models_created
+        - models_updated
+        - models_skipped_manual
+        - models_disabled
+        - models_unpriced
+        - aliases_written
+        - charges_written
+        - tracks_written
+        - rows_written
+        - import_ms
+      type: object
+    PricingCatalogSyncRunView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/PricingCatalogSyncRunView.json
+          format: uri
+          readOnly: true
+          type: string
+        duration_ms:
+          description: 运行耗时(毫秒;进行中为 0)
+          format: int64
+          type: integer
+        id:
+          description: 运行 ID
+          type: string
+        message:
+          description: 失败原因(含失败的导入阶段与耗时);成功时省略
+          type: string
+        result:
+          $ref: "#/components/schemas/PricingCatalogSyncResultView"
+          description: 结局与导入统计;进行中、或没有运行到同步步骤时省略
+        started_at:
+          description: 开始时间
+          format: date-time
+          type: string
+        status:
+          description: running = 进行中;success / failed / cancelled = 已结束
+          enum:
+            - running
+            - success
+            - failed
+            - partial
+            - cancelled
+          type: string
+        trigger:
+          description: schedule = 按同步周期排程;manual = 立即同步或定时任务页的立即运行
+          enum:
+            - schedule
+            - manual
+          type: string
+        triggered_by:
+          description: 手动触发人显示名(trigger=manual)
+          type: string
+      required:
+        - id
+        - status
+        - trigger
+        - started_at
+        - duration_ms
+      type: object
+    PricingCatalogSyncStateView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/PricingCatalogSyncStateView.json
+          format: uri
+          readOnly: true
+          type: string
+        latest_run:
+          $ref: "#/components/schemas/PricingCatalogSyncRunView"
+          description: 最近一轮同步;从未同步过时省略
+      type: object
     PricingCatalogUnimportedChargeView:
       additionalProperties: false
       properties:
@@ -24833,9 +25546,9 @@ components:
       additionalProperties: false
       properties:
         amount:
-          description: 账户余额(不限额时为 0)
-          format: double
-          type: number
+          description: 账户余额(十进制字符串,上游给出的数字;不限额时为 0)
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+          type: string
         checked_at:
           description: 采用的读数的读取时间
           format: date-time
@@ -24856,6 +25569,7 @@ components:
           description: 给出余额的来源
           enum:
             - custom
+            - cchp
             - sub2api
             - new_api
             - billing
@@ -24878,9 +25592,9 @@ components:
       additionalProperties: false
       properties:
         amount:
-          description: 该单位的余额合计
-          format: double
-          type: number
+          description: 该单位的余额合计(十进制字符串)
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+          type: string
         unit:
           description: 余额单位
           type: string
@@ -24929,10 +25643,9 @@ components:
             - unknown
           type: string
         low_threshold_usd:
-          description: 余额提醒线(美元;upstream_probe.balance.low_threshold_units 按 global → organization → provider 的生效值)
-          format: double
-          minimum: 0
-          type: number
+          description: 余额提醒线(美元,十进制字符串;upstream_probe.balance.low_threshold_units 按 global → organization → provider 的生效值)
+          pattern: ^[0-9]+(\.[0-9]+)?$
+          type: string
         oldest_checked_at:
           description: 参与合计的读数里最早的读取时间
           format: date-time
@@ -24946,9 +25659,9 @@ components:
             - none
           type: string
         total_usd:
-          description: 美元余额合计;没有美元读数时省略
-          format: double
-          type: number
+          description: 美元余额合计(十进制字符串,上游读数的精确和);没有美元读数时省略
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+          type: string
         totals:
           description: 按单位的余额合计(美元在前);不限额的账户不计入数值
           items:
@@ -24999,7 +25712,7 @@ components:
           description: New API 管理令牌末 4 位;未配置或令牌短于 24 个字符时省略
           type: string
         new_api_user_id:
-          description: New API 用户 ID(旧版 New API 的 New-Api-User 请求头);未配置时省略
+          description: New API 用户 ID(旧版 New API 与它的部分分支要求系统访问令牌同时在请求头里带上用户 ID);未配置时省略
           format: int64
           minimum: 1
           type: integer
@@ -25039,6 +25752,25 @@ components:
       required:
         - endpointId
         - keys
+      type: object
+    ProviderError:
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+        httpStatus:
+          format: int64
+          type: integer
+        message:
+          type: string
+        operation:
+          type: string
+        requestId:
+          type: string
+      required:
+        - operation
+        - code
+        - message
       type: object
     ProviderFaviconIconView:
       additionalProperties: false
@@ -25703,10 +26435,10 @@ components:
           readOnly: true
           type: string
         balance:
-          description: 余额数值;unlimited=true 或解析失败时为空
-          format: double
+          description: 余额数值(十进制字符串,上游给出的数字);unlimited=true、unsupported 与 not_tracked 时为空
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
           type:
-            - number
+            - string
             - "null"
         cached:
           description: 是否命中 30 秒缓存
@@ -25718,8 +26450,18 @@ components:
           description: 查询时间
           format: date-time
           type: string
+        reason:
+          description: status 为 unsupported 时的原因码(与密钥上游状态的 reason 相同)
+          type: string
         source:
           description: 命中的余额探测来源
+          type: string
+        status:
+          description: ok 拿到余额;unsupported 没有可用的余额来源;not_tracked 密钥不参与自动读取余额,没有访问上游
+          enum:
+            - ok
+            - unsupported
+            - not_tracked
           type: string
         unit:
           description: 余额单位
@@ -25728,6 +26470,7 @@ components:
           description: 上游是否标记为无限额度
           type: boolean
       required:
+        - status
         - balance
         - unit
         - source
@@ -25744,9 +26487,9 @@ components:
           minimum: 0
           type: integer
         amount:
-          description: 读到的余额
-          format: double
-          type: number
+          description: 读到的余额(十进制字符串,上游给出的数字)
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+          type: string
         checked_at:
           description: 最近一次读取余额的时间
           format: date-time
@@ -25764,6 +26507,7 @@ components:
           description: 给出余额的来源
           enum:
             - custom
+            - cchp
             - sub2api
             - new_api
             - billing
@@ -25828,9 +26572,6 @@ components:
           description: 创建时间
           format: date-time
           type: string
-        error:
-          description: 失败原因
-          type: string
         finishedAt:
           description: 结束时间
           format: date-time
@@ -25849,6 +26590,9 @@ components:
         matchedExact:
           description: matched 是否精确
           type: boolean
+        requestId:
+          description: 创建任务的请求 ID;任务失败时服务端日志按这个 ID 记下原因
+          type: string
         scanned:
           description: 已扫描的密钥数(拖动排序为已读取的密钥数)
           format: int64
@@ -25872,12 +26616,29 @@ components:
             - failed
             - cancelled
           type: string
+        undoKind:
+          description: undo = 撤销拖动排序或撤销重做;redo = 撤销一次撤销,重新执行原来的调整
+          enum:
+            - undo
+            - redo
+          type: string
         undoOf:
-          description: 撤销的拖动排序任务 ID
+          description: 这个撤销任务撤销的任务 ID
+          type: string
+        undoOfCreatedAt:
+          description: undoOf 那个任务的创建时间
+          format: date-time
           type: string
         undoable:
-          description: 已完成的拖动排序可以撤销
+          description: 现在可以撤销:已完成的拖动排序任务(撤销任务与重做任务也是),且还没有撤销任务
           type: boolean
+        undoneBy:
+          description: 撤销了这个任务的任务 ID(排队、执行中、已完成,或结束时改动过密钥);有值时不能再撤销
+          type: string
+        visibleUntil:
+          description: 结束的任务离开列表的时刻(结束后 10 分钟)
+          format: date-time
+          type: string
       required:
         - id
         - action
@@ -25946,7 +26707,7 @@ components:
           description: status 不是 applied 时的原因码:读取失败时与手动获取相同(no_supported_upstream、upstream_auth、connect_error 等);skipped 时为 auto_detect_off、ratio_disabled 或 provider_excluded
           type: string
         status:
-          description: applied = 读到上游分组倍率,成本倍率从它开始;unavailable = 上游给不出倍率,用手动填写的值或默认 1.0x;skipped = 没有读取(开关关闭、组织关闭了倍率获取或供应商不参与)
+          description: applied = 读到上游分组倍率,成本倍率从它开始;unavailable = 上游给不出倍率,用手动填写的值或默认 1.0x;skipped = 读到的倍率不写入(开关关闭、组织关闭了倍率获取或供应商不参与),上游类型照常识别
           enum:
             - applied
             - unavailable
@@ -25955,6 +26716,7 @@ components:
         upstreamType:
           description: 识别出的上游类型
           enum:
+            - cchp
             - sub2api
             - new_api
             - unknown
@@ -26625,13 +27387,14 @@ components:
           minimum: 0
           type: integer
         credential_type:
-          description: 凭据类型(由密钥内容得出):api_key=普通字符串密钥;service_account=Google Cloud 服务账号 JSON;azure_api_key=Azure OpenAI 资源密钥;azure_entra=Entra ID 应用凭据;volc_speech=火山引擎豆包语音凭据
+          description: 凭据类型(由密钥内容得出):api_key=普通字符串密钥;service_account=Google Cloud 服务账号 JSON;azure_api_key=Azure OpenAI 资源密钥;azure_entra=Entra ID 应用凭据;volc_speech=火山引擎豆包语音凭据;bce_ak_sk=百度智能云 AK/SK
           enum:
             - api_key
             - service_account
             - azure_api_key
             - azure_entra
             - volc_speech
+            - bce_ak_sk
           type: string
         id:
           description: Provider Key ID
@@ -27524,7 +28287,7 @@ components:
           description: 1 天窗口
         credit1m:
           $ref: "#/components/schemas/QuotaWindowRuleInput"
-          description: 1 月窗口
+          description: 月窗口(rolling 为 30 天,calendar / cycle 为一个月)
         credit1w:
           $ref: "#/components/schemas/QuotaWindowRuleInput"
           description: 1 周窗口
@@ -27543,7 +28306,7 @@ components:
           description: 1 天窗口
         credit1m:
           $ref: "#/components/schemas/QuotaWindowRuleView"
-          description: 1 月窗口
+          description: 月窗口(rolling 为 30 天,calendar / cycle 为一个月)
         credit1w:
           $ref: "#/components/schemas/QuotaWindowRuleView"
           description: 1 周窗口
@@ -27602,7 +28365,7 @@ components:
           minimum: 0
           type: integer
         mode:
-          description: 窗口模式:rolling = 滚动(最近一个窗口长度内的用量);calendar = 日历对齐(按 timezone 的日 / 周一 / 月 1 号重置);aligned = 5 小时按 epoch 整除对齐;anchored = 5 小时从窗口内首次使用起算;cycle = 从 anchorAt 起按窗口长度连续切分(5 小时 / 1 天 / 1 周按固定时长,1 月按日历月,短月份取当月最后一天),与按订阅日计费的上游窗口重合;total = 累计(只用于 creditTotal)
+          description: 窗口模式:rolling = 滚动，逐个请求精确计数最近一个窗口长度内的用量(credit1m 的窗口长度是 30 天);calendar = 日历对齐(按 timezone 的日 / 周一 / 月 1 号重置,credit1m 是日历月);aligned = 5 小时按 Unix 时间整除对齐;anchored = 5 小时从窗口内首次使用起算;cycle = 从 anchorAt 起按窗口长度连续切分(5 小时 / 1 天 / 1 周按固定时长,credit1m 按日历月，短月份取当月最后一天),与按订阅日计费的上游窗口重合;total = 累计(只用于 creditTotal)。策略没有某个维度的规则时按系统设置 quota.window.mode.*(默认 rolling;1 天、1 周、1 月默认按 quota.rolling_cf.window_kinds 两段估算，计数桶按 Unix 时间整除窗口长度对齐，月是 30 天;fixed 为 UTC 日、周一、月 1 日重置,5 小时同 aligned)
           enum:
             - rolling
             - calendar
@@ -27635,7 +28398,7 @@ components:
       additionalProperties: false
       properties:
         limit:
-          description: 上限(credit 维度单位 units,1 credit = 10^10 units)
+          description: 上限(credit 维度单位 units,1 credit = 10^10 units);0 = 这一层没有上限,只计数
           format: int64
           type: integer
         metric:
@@ -27649,12 +28412,16 @@ components:
             - credit1m
             - creditTotal
           type: string
+        nextWindowStart:
+          description: 下一个窗口的起点:fixed 与 rolling_cf 等于 windowEnd(rolling_cf 到这一刻当前桶成为上一个桶，在下一个桶内按比例释放);rolling 连续滑动、anchored 从下一次使用起算，缺省
+          format: date-time
+          type: string
         remaining:
-          description: 余量:上限减去当前计数,不小于 0
+          description: 余量:上限减去当前计数,不小于 0;limit = 0 时为 0
           format: int64
           type: integer
         resetAt:
-          description: 额度整体清零的时刻,只有固定窗口有
+          description: 计数整体清零的时刻:fixed 与 anchored 等于 windowEnd;rolling 与 rolling_cf 随时间逐步释放，缺省
           format: date-time
           type: string
         used:
@@ -27662,11 +28429,11 @@ components:
           format: int64
           type: integer
         windowEnd:
-          description: 当前计数覆盖的区间终点(滚动窗口为现在)
+          description: 当前生效窗口的终点(不含)。fixed:窗口终点;rolling:现在;rolling_cf:当前计数桶的终点;anchored:首次使用加 5 小时
           format: date-time
           type: string
         windowKind:
-          description: 计数方式:fixed = 固定窗口(到 resetAt 整体清零);rolling / rolling_cf = 滚动窗口(随时间逐步释放);anchored = 5 小时从窗口内首次使用起算;total = 累计;concurrency / unique_keys = 并发
+          description: 计数方式:fixed = 固定窗口(组织固定模式与策略的 calendar / cycle / aligned,到 resetAt 整体清零);rolling = 滚动窗口，逐个请求精确计数;rolling_cf = 滚动窗口的两段估算(当前计数桶加上一个桶按比例折算);anchored = 5 小时从窗口内首次使用起算;total = 累计;concurrency / unique_keys = 并发
           enum:
             - fixed
             - rolling
@@ -27677,7 +28444,7 @@ components:
             - unique_keys
           type: string
         windowStart:
-          description: 当前计数覆盖的区间起点(滚动窗口为现在往前一个窗口长度);累计、并发与 anchored 缺省
+          description: 当前生效窗口的起点。fixed:窗口起点;rolling:现在往前一个窗口长度(策略手动清零晚于它时为清零时刻);rolling_cf:当前计数桶的起点(按 Unix 时间整除窗口长度对齐);anchored:窗口内首次使用的时刻，还没有使用时缺省;total、concurrency、unique_keys 缺省
           format: date-time
           type: string
       required:
@@ -28650,6 +29417,50 @@ components:
         - org_id
         - status
         - already_redeemed
+      type: object
+    RedeemSessionTransferBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/RedeemSessionTransferBody.json
+          format: uri
+          readOnly: true
+          type: string
+        expires_at:
+          type: string
+        return_to:
+          description: begin 时给出的站内路径
+          type: string
+        session_id:
+          type: string
+        user_id:
+          type: string
+      required:
+        - user_id
+        - session_id
+        - expires_at
+        - return_to
+      type: object
+    RedeemSessionTransferInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/RedeemSessionTransferInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        code:
+          description: 来源域名确认后签发的接力码
+          maxLength: 43
+          minLength: 43
+          type: string
+          writeOnly: true
+      required:
+        - code
       type: object
     RedeemSetupTokenInputBody:
       additionalProperties: false
@@ -30782,6 +31593,8 @@ components:
           type:
             - string
             - "null"
+        upstreamCharge:
+          $ref: "#/components/schemas/UpstreamChargeView"
         upstreamModel:
           type:
             - string
@@ -30815,6 +31628,7 @@ components:
         - lastPolledAt
         - nextPollAt
         - failureDetail
+        - upstreamCharge
         - attempts
       type: object
     S3Config:
@@ -32094,6 +32908,15 @@ components:
           maxLength: 254
           minLength: 1
           type: string
+        invitation_token:
+          description: 邀请邮件里的邀请凭据;注册关闭时须是发给这个邮箱、仍待接受且未过期的邀请
+          maxLength: 64
+          type: string
+          writeOnly: true
+        invite_code:
+          description: 邀请链接带来的组织或团队邀请码;注册关闭时须是启用中、未过期、未用完的码
+          maxLength: 16
+          type: string
         locale:
           description: 验证码邮件的语言(界面当前的语言);省略时为 en-US
           enum:
@@ -32202,6 +33025,43 @@ components:
       required:
         - carrier
         - sent
+      type: object
+    SessionTransferOriginsOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/SessionTransferOriginsOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        origins:
+          description: 可以接力的其他控制台地址(浏览器源站 scheme://host[:port]),按源站排序
+          items:
+            type: string
+          type: array
+      required:
+        - origins
+      type: object
+    SessionTransferRequestInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/SessionTransferRequestInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        request:
+          description: begin 返回的接力请求值
+          maxLength: 43
+          minLength: 43
+          type: string
+          writeOnly: true
+      required:
+        - request
       type: object
     SetAffAssignmentInputBody:
       additionalProperties: false
@@ -32614,6 +33474,68 @@ components:
         - requestMaxOutputTokens
         - breakdown
       type: object
+    SidebarChild:
+      additionalProperties: false
+      properties:
+        hidden:
+          type: boolean
+        icon:
+          type: string
+        id:
+          type: string
+      required:
+        - id
+      type: object
+    SidebarEntry:
+      additionalProperties: false
+      properties:
+        children:
+          items:
+            $ref: "#/components/schemas/SidebarChild"
+          type: array
+        hidden:
+          type: boolean
+        icon:
+          type: string
+        id:
+          type: string
+        label:
+          type: string
+        labels:
+          additionalProperties:
+            type: string
+          type: object
+        type:
+          type: string
+        url:
+          type: string
+      required:
+        - type
+        - id
+      type: object
+    SidebarGroup:
+      additionalProperties: false
+      properties:
+        entries:
+          items:
+            $ref: "#/components/schemas/SidebarEntry"
+          type: array
+        id:
+          type: string
+      required:
+        - id
+        - entries
+      type: object
+    SidebarLayout:
+      additionalProperties: false
+      properties:
+        groups:
+          items:
+            $ref: "#/components/schemas/SidebarGroup"
+          type: array
+      required:
+        - groups
+      type: object
     SignUpInputBody:
       additionalProperties: false
       properties:
@@ -32638,6 +33560,15 @@ components:
           format: email
           maxLength: 254
           minLength: 1
+          type: string
+        invitation_token:
+          description: 邀请邮件里的邀请凭据;注册关闭时须是发给这个邮箱、仍待接受且未过期的邀请
+          maxLength: 64
+          type: string
+          writeOnly: true
+        invite_code:
+          description: 邀请链接带来的组织或团队邀请码;注册关闭时须是启用中、未过期、未用完的码
+          maxLength: 16
           type: string
         password:
           maxLength: 128
@@ -32669,6 +33600,13 @@ components:
         available:
           format: int64
           type: integer
+        available_decimal:
+          description: 可用余额的精确十进制数字(JSON 数字写法),单位是 currency 本身
+          pattern: ^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$
+          type: string
+        available_saturated:
+          description: available 是饱和值:可用余额超出 int64 的百万分之一范围
+          type: boolean
         currency:
           pattern: ^[A-Z]{3}$
           type: string
@@ -32821,15 +33759,27 @@ components:
     SourceIssue:
       additionalProperties: false
       properties:
+        actual:
+          format: int64
+          type: integer
         code:
           type: string
+        expected:
+          format: int64
+          type: integer
         field:
+          type: string
+        format:
+          type: string
+        got:
           type: string
         id:
           type: string
         kind:
           type: string
         ref:
+          type: string
+        want:
           type: string
       required:
         - code
@@ -34455,6 +35405,8 @@ components:
             - "null"
         cancellable:
           type: boolean
+        cchpId:
+          type: string
         clientDisconnectedAt:
           format: date-time
           type:
@@ -34542,6 +35494,7 @@ components:
             - "null"
       required:
         - id
+        - cchpId
         - kind
         - operation
         - deliveryMode
@@ -34947,16 +35900,57 @@ components:
         durationMs:
           format: int64
           type: integer
+        egressBlocked:
+          type: boolean
         message:
           type: string
         name:
           type: string
+        provider:
+          $ref: "#/components/schemas/ProviderError"
         status:
           type: string
       required:
         - name
         - status
         - durationMs
+      type: object
+    TestStorageConfigInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/TestStorageConfigInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        backend:
+          description: 产物存储后端;只有 s3 可以测试连接
+          enum:
+            - local
+            - s3
+          type: string
+        s3_access_key_id:
+          description: S3 access key id
+          type: string
+        s3_bucket:
+          description: S3 桶名
+          type: string
+        s3_endpoint:
+          description: S3 自定义端点(空 = AWS 官方端点)
+          type: string
+        s3_force_path_style:
+          description: path-style 寻址
+          type: boolean
+        s3_region:
+          description: S3 区域
+          type: string
+        s3_secret_access_key:
+          description: S3 secret access key 明文(留空 = 使用已保存的值;不保存、不回显)
+          type: string
+      required:
+        - backend
       type: object
     TotpStruct:
       additionalProperties: false
@@ -35448,6 +36442,9 @@ components:
             - "null"
         retryable:
           type: boolean
+        stopFailover:
+          description: 命中后不再切换候选
+          type: boolean
       type: object
     UpdateMemberRoleInputBody:
       additionalProperties: false
@@ -35629,7 +36626,7 @@ components:
             - postpaid
           type: string
         monthlyOverdraftLimitUnits:
-          description: 组织的月度超刷限额(credit units);null = 不封顶。只在后付费时生效
+          description: 组织的月度授信额度上限(credit units),每月 1 日(UTC)重置;null = 不封顶。只在后付费时生效
           format: int64
           minimum: 0
           type:
@@ -35746,7 +36743,7 @@ components:
           maxLength: 512
           type: string
         new_api_user_id:
-          description: New API 用户 ID(旧版 New API 的系统访问令牌需要);0 = 清除
+          description: New API 用户 ID(旧版 New API 与它的部分分支的系统访问令牌需要);0 = 清除
           format: int64
           minimum: 0
           type: integer
@@ -36326,20 +37323,21 @@ components:
       additionalProperties: false
       properties:
         amount:
-          description: 可用余额数值,单位见 unit;unlimited 时省略
-          format: double
-          type: number
+          description: 可用余额数值(十进制字符串,上游给出的数字),单位见 unit;unlimited 时省略
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+          type: string
         amountUsd:
-          description: 可用余额(美元);单位不是 USD 或 unlimited 时省略
-          format: double
-          type: number
+          description: 可用余额(美元,十进制字符串);单位不是 USD 或 unlimited 时省略
+          pattern: ^-?[0-9]+(\.[0-9]+)?$
+          type: string
         reason:
           description: status 不是 ok 时的原因码
           type: string
         source:
-          description: 给出余额的来源:custom = 密钥的 balance_query_url;sub2api / new_api = 上游中转;billing = OpenAI 兼容 billing 接口
+          description: 给出余额的来源:custom = 密钥的 balance_query_url;cchp / sub2api / new_api = 上游中转;billing = OpenAI 兼容 billing 接口
           enum:
             - custom
+            - cchp
             - sub2api
             - new_api
             - billing
@@ -36360,6 +37358,17 @@ components:
       required:
         - status
         - unlimited
+      type: object
+    UpstreamChargeView:
+      additionalProperties: false
+      properties:
+        amount:
+          type: string
+        currency:
+          type: string
+      required:
+        - amount
+        - currency
       type: object
     UpstreamCooldownView:
       additionalProperties: false
@@ -36435,6 +37444,7 @@ components:
         upstreamType:
           description: 识别出的上游类型
           enum:
+            - cchp
             - sub2api
             - new_api
             - unknown
@@ -36523,7 +37533,7 @@ components:
       additionalProperties: false
       properties:
         group:
-          description: 上游分组名(new-api 提供;sub2api 不返回分组名)
+          description: 上游分组名(CCHP 与 new-api 提供;sub2api 不返回分组名)
           type: string
         groupRatio:
           description: 分组倍率
@@ -36547,7 +37557,7 @@ components:
           format: double
           type: number
         value:
-          description: 写入成本倍率的值(sub2api resolved_rate_multiplier;new-api 用户在该分组的实际倍率)
+          description: 写入成本倍率的值(CCHP 可调度分组里最低的计费倍率;sub2api resolved_rate_multiplier;new-api 用户在该分组的实际倍率)
           format: double
           type: number
         valuePpm:
@@ -36568,9 +37578,9 @@ components:
           format: date-time
           type: string
         balancePauseFloorUsd:
-          description: 余额低于它时暂停调度的下限(美元);暂停开关关闭或这把密钥不参与余额读取时省略
-          format: double
-          type: number
+          description: 余额低于它时暂停调度的下限(美元,十进制字符串);暂停开关关闭或这把密钥不参与余额读取时省略
+          pattern: ^[0-9]+(\.[0-9]+)?$
+          type: string
         balancePausedAt:
           description: 因余额低于下限暂停调度的时间;未暂停时省略
           format: date-time
@@ -36617,6 +37627,7 @@ components:
         upstreamType:
           description: 最近一次识别出的上游类型
           enum:
+            - cchp
             - sub2api
             - new_api
             - unknown
@@ -36689,12 +37700,39 @@ components:
       required:
         - langfuseTraceId
       type: object
+    UsageAttemptConnection:
+      additionalProperties: false
+      properties:
+        choice:
+          enum:
+            - reuse
+            - new
+            - least_uploading
+            - http1
+          type: string
+        count:
+          format: int64
+          type: integer
+        index:
+          format: int64
+          type: integer
+        uploadingBytes:
+          format: int64
+          type: integer
+      required:
+        - choice
+        - index
+        - count
+        - uploadingBytes
+      type: object
     UsageAttemptNetwork:
       additionalProperties: false
       properties:
         connectMs:
           format: int64
           type: integer
+        connection:
+          $ref: "#/components/schemas/UsageAttemptConnection"
         connectionReused:
           type: boolean
         dnsMs:
@@ -36704,6 +37742,22 @@ components:
           format: int64
           type: integer
         prepareMs:
+          format: int64
+          type: integer
+        protocol:
+          type: string
+        protocolFallback:
+          type: boolean
+        protocolPreference:
+          enum:
+            - auto
+            - h1_only
+            - h2_only
+          type: string
+        requestBytes:
+          format: int64
+          type: integer
+        requestWriteMs:
           format: int64
           type: integer
         tlsMs:
@@ -36888,6 +37942,7 @@ components:
             - predicted
             - fallback
             - free_operation
+            - gateway_measured
           type:
             - string
             - "null"
@@ -36932,6 +37987,76 @@ components:
         - firstContentAt
         - usageSource
         - completionStatus
+      type: object
+    UsageBatchInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/UsageBatchInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        requests:
+          description: 按顺序读取的用量请求
+          items:
+            $ref: "#/components/schemas/UsageBatchRequest"
+          maxItems: 32
+          minItems: 1
+          type: array
+      required:
+        - requests
+      type: object
+    UsageBatchOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/UsageBatchOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        results:
+          description: 与 requests 一一对应
+          items:
+            $ref: "#/components/schemas/UsageBatchResult"
+          type: array
+      required:
+        - results
+      type: object
+    UsageBatchRequest:
+      additionalProperties: false
+      properties:
+        path:
+          description: 要读取的用量接口
+          enum:
+            - /api/account/usage/summary
+            - /api/account/usage/timeseries
+            - /api/account/usage/leaderboard
+            - /api/account/usage/view-policy
+          type: string
+        query:
+          description: 该接口的查询参数(URL 编码，不含开头的 ?)
+          maxLength: 2048
+          type: string
+      required:
+        - path
+        - query
+      type: object
+    UsageBatchResult:
+      additionalProperties: false
+      properties:
+        body:
+          description: 该请求单独发出时的响应体：成功时是对应接口的响应，失败时是 problem+json
+        status:
+          description: 该请求单独发出时的 HTTP 状态码
+          format: int64
+          type: integer
+      required:
+        - status
+        - body
       type: object
     UsageByDimResultUsageByKeyRowBody:
       additionalProperties: false
@@ -37552,6 +38677,11 @@ components:
           items:
             $ref: "#/components/schemas/UsageCostBreakdownAttempt"
           type: array
+        containers:
+          description: 请求里出现的容器(创建容器,或 Responses 里新建的代码执行与 Shell 容器)已经结算的计费段:容器按活跃分钟计费,每段最多 20 分钟
+          items:
+            $ref: "#/components/schemas/UsageCostBreakdownContainer"
+          type: array
         segments:
           description: 实时会话在会话期间已经单独结算的周期结算段(按段号排列)
           items:
@@ -37596,6 +38726,66 @@ components:
         - attemptNo
         - subtotalUnits
         - lines
+      type: object
+    UsageCostBreakdownContainer:
+      additionalProperties: false
+      properties:
+        attempts:
+          description: 这一段的计费行
+          items:
+            $ref: "#/components/schemas/UsageCostBreakdownAttempt"
+          type: array
+        containerBilling:
+          description: settled=按活跃分钟结算;held_unresolved=持有容器的上游密钥已删除或状态读不到,这一段按预扣的 20 分钟结算
+          enum:
+            - settled
+            - held_unresolved
+          type: string
+        containerId:
+          description: 交给客户端的网关容器 ID
+          type: string
+        endedAt:
+          description: 段的结束时刻
+          format: date-time
+          type: string
+        ledgerRequestId:
+          description: 这一段在账本里的请求标识
+          type: string
+        minutes:
+          description: 这一段计费的活跃分钟
+          format: int64
+          type: integer
+        seq:
+          description: 容器的第几段(从 1 起,每段最多 20 分钟)
+          format: int64
+          type: integer
+        startedAt:
+          description: 段的开始时刻
+          format: date-time
+          type: string
+        subtotalUnits:
+          description: 这一段的结算金额(units)
+          format: int64
+          type: integer
+        tier:
+          description: 容器的内存档位
+          enum:
+            - 1g
+            - 4g
+            - 16g
+            - 64g
+          type: string
+      required:
+        - containerId
+        - seq
+        - ledgerRequestId
+        - tier
+        - minutes
+        - startedAt
+        - endedAt
+        - containerBilling
+        - subtotalUnits
+        - attempts
       type: object
     UsageCostBreakdownLine:
       additionalProperties: false
@@ -38192,6 +39382,8 @@ components:
           $ref: "#/components/schemas/UsageRequestOverrides"
         responseState:
           $ref: "#/components/schemas/UsageResponseState"
+        responsesWebSocket:
+          $ref: "#/components/schemas/UsageResponsesWebSocket"
         routing:
           $ref: "#/components/schemas/UsageRoutingDecision"
         routingAbsence:
@@ -38451,6 +39643,10 @@ components:
           type:
             - string
             - "null"
+        clientSessionId:
+          type:
+            - string
+            - "null"
         completedAt:
           format: date-time
           type:
@@ -38583,6 +39779,8 @@ components:
           type:
             - string
             - "null"
+        reasoningEffortEffective:
+          $ref: "#/components/schemas/UsageReasoningEffort"
         reasoningEffortRaw:
           type:
             - string
@@ -38644,6 +39842,10 @@ components:
           type: string
         streaming:
           type: boolean
+        taskCchpId:
+          type:
+            - string
+            - "null"
         taskId:
           type:
             - string
@@ -38735,6 +39937,7 @@ components:
         - teamId
         - apiKeyId
         - sessionId
+        - clientSessionId
         - sessionIdentity
         - sessionIdentityKind
         - affinityScopeTag
@@ -38768,6 +39971,7 @@ components:
         - converted
         - reasoningEffort
         - reasoningEffortRaw
+        - reasoningEffortEffective
         - clientRequestId
         - startedAt
         - completedAt
@@ -38784,6 +39988,7 @@ components:
         - isReplay
         - replaySourceRequestId
         - taskId
+        - taskCchpId
         - batchId
         - batchCustomId
         - requestOrigin
@@ -39003,6 +40208,32 @@ components:
       required:
         - rank
         - effectiveScope
+      type: object
+    UsageReasoningEffort:
+      additionalProperties: false
+      properties:
+        level:
+          description: 归一档位,取值同 reasoningEffort;出站请求体没有推理参数或参数值无法归一为 null
+          enum:
+            - none
+            - minimal
+            - low
+            - medium
+            - high
+            - xhigh
+            - max
+            - auto
+          type:
+            - string
+            - "null"
+        raw:
+          description: 出站请求体里的原始字段,形如 reasoning.effort=max;出站请求体没有推理参数为 null
+          type:
+            - string
+            - "null"
+      required:
+        - level
+        - raw
       type: object
     UsageRequestBodyTiming:
       additionalProperties: false
@@ -39275,6 +40506,76 @@ components:
         - providerKeyId
         - endpointId
       type: object
+    UsageResponsesWebSocket:
+      additionalProperties: false
+      properties:
+        attempts:
+          description: 按执行顺序排列的每个 attempt 的上游出站方式
+          items:
+            $ref: "#/components/schemas/UsageResponsesWebSocketAttempt"
+          type: array
+        streamId:
+          description: 回合所在的客户端通道(stream_id);默认通道为 null
+          type:
+            - string
+            - "null"
+        warmup:
+          description: 回合是 generate:false 预热
+          type: boolean
+      required:
+        - streamId
+        - warmup
+        - attempts
+      type: object
+    UsageResponsesWebSocketAttempt:
+      additionalProperties: false
+      properties:
+        attemptNo:
+          description: attempt 序号
+          format: int64
+          type: integer
+        connectionReused:
+          description: 经上游 WebSocket 发出时复用了这条客户端连接已有的上游连接;没有经 WebSocket 时为 null
+          type:
+            - boolean
+            - "null"
+        fallbackReason:
+          description: 上游不支持 WebSocket 模式、回合在同一候选上改走 HTTP 的原因;upstream_websocket_unsupported=记忆期内这把密钥在这个端点上已知不支持;没有改走时为 null
+          enum:
+            - handshake_rejected
+            - upgrade_not_completed
+            - handshake_failed
+            - invalid_first_frame
+            - closed_before_first_event
+            - websocket_field_rejected
+            - upstream_websocket_unsupported
+          type:
+            - string
+            - "null"
+        handshakeStatus:
+          description: 上游拒绝 WebSocket 握手的 HTTP 状态;没有时为 null
+          format: int64
+          type:
+            - integer
+            - "null"
+        remembered:
+          description: 这次判定记住了这把密钥在这个端点上不支持 WebSocket 模式(之后一小时直接以 HTTP 发出)
+          type: boolean
+        transport:
+          description: websocket=经上游 WebSocket 连接发出;http=以 HTTP POST /v1/responses 发出;gateway=generate:false 预热由网关在本地回答,没有上游调用
+          enum:
+            - websocket
+            - http
+            - gateway
+          type: string
+      required:
+        - attemptNo
+        - transport
+        - fallbackReason
+        - handshakeStatus
+        - remembered
+        - connectionReused
+      type: object
     UsageRoutingAdmission:
       additionalProperties: false
       properties:
@@ -39481,6 +40782,45 @@ components:
         - type
         - id
       type: object
+    UsageRoutingModelRedirect:
+      additionalProperties: false
+      properties:
+        from:
+          description: 改写之前的模型名
+          type: string
+        groupName:
+          description: 分组名称(取当前名称;不属于分组的情境或分组已删除为 null)
+          type:
+            - string
+            - "null"
+        providerGroupId:
+          description: 改写所在情境的供应商分组 ID;不属于分组的情境为 null
+          type:
+            - string
+            - "null"
+        providerGroupTag:
+          description: 改写所在情境的供应商分组 tag;不属于分组的情境为 null
+          type:
+            - string
+            - "null"
+        ruleId:
+          description: 规则 ID
+          type: string
+        scope:
+          description: 规则的来源 scope_key
+          type: string
+        to:
+          description: 改写之后的模型名
+          type: string
+      required:
+        - providerGroupId
+        - providerGroupTag
+        - groupName
+        - scope
+        - ruleId
+        - from
+        - to
+      type: object
     UsageRoutingModelResolution:
       additionalProperties: false
       properties:
@@ -39494,6 +40834,11 @@ components:
           type:
             - string
             - "null"
+        redirects:
+          description: 路由阶段(候选查找之前)改写模型名的规则,按情境与执行顺序;没有改写时为空数组
+          items:
+            $ref: "#/components/schemas/UsageRoutingModelRedirect"
+          type: array
         requestedModel:
           type: string
         resolvedModel:
@@ -39526,6 +40871,7 @@ components:
         - resolvedModel
         - source
         - match
+        - redirects
       type: object
     UsageRoutingOrderedGroup:
       additionalProperties: false
@@ -39626,9 +40972,12 @@ components:
         formatTierReason:
           enum:
             - same_protocol
+            - same_protocol_by_strategy
             - conversion_after_passthrough
+            - conversion_by_strategy
             - conversion_passthrough_unavailable
             - conversion_no_passthrough_candidate
+            - conversion_cross_endpoint_type
           type:
             - string
             - "null"
@@ -40344,6 +41693,8 @@ components:
           description: 额外调用(重试 / 换候选 / hedge)在发出前追加的补充预扣
           format: int64
           type: integer
+        upstreamReportedCharge:
+          $ref: "#/components/schemas/UsageUpstreamCharge"
       required:
         - kind
         - postedUnits
@@ -40620,6 +41971,19 @@ components:
         - outProtocol
         - converted
       type: object
+    UsageUpstreamCharge:
+      additionalProperties: false
+      properties:
+        amount:
+          description: 十进制金额(上游原值)
+          type: string
+        currency:
+          description: ISO 4217 币种(百度 VOD 的积分 1 积分 = 1 元,记为 CNY)
+          type: string
+      required:
+        - amount
+        - currency
+      type: object
     UsageUpstreamStream:
       additionalProperties: false
       properties:
@@ -40821,13 +42185,13 @@ components:
         - role
         - status
       type: object
-    UserNotificationListOutputBody:
+    UserNotificationListBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/UserNotificationListOutputBody.json
+            - //api/schemas/UserNotificationListBody.json
           format: uri
           readOnly: true
           type: string
@@ -40950,32 +42314,6 @@ components:
         - teamName
         - teamRole
         - canManage
-      type: object
-    UserStruct:
-      additionalProperties: false
-      properties:
-        avatarUrl:
-          type: string
-        displayName:
-          type: string
-        email:
-          type: string
-        emailVerified:
-          type: boolean
-        id:
-          type: string
-        isPlatformAdmin:
-          type: boolean
-        passwordChangeRequired:
-          type: boolean
-      required:
-        - id
-        - email
-        - displayName
-        - avatarUrl
-        - isPlatformAdmin
-        - emailVerified
-        - passwordChangeRequired
       type: object
     UserView:
       additionalProperties: false
@@ -41122,10 +42460,30 @@ components:
           $ref: "#/components/schemas/ExpressionResult"
         final:
           $ref: "#/components/schemas/ValidateFinal"
+        route:
+          $ref: "#/components/schemas/ValidateRoute"
         rules:
           items:
             $ref: "#/components/schemas/RuleRun"
           type: array
+      type: object
+    ValidateRoute:
+      additionalProperties: false
+      properties:
+        endpoint:
+          type: string
+        modelId:
+          type: string
+        modelResolved:
+          type: string
+        provider:
+          type: string
+        providerKey:
+          type: string
+        withoutProviderKey:
+          type: boolean
+      required:
+        - withoutProviderKey
       type: object
     ValidatorContext:
       additionalProperties: false
@@ -41134,7 +42492,7 @@ components:
           maxLength: 64
           type: string
         model:
-          maxLength: 64
+          maxLength: 512
           type: string
         organization:
           maxLength: 64
@@ -41304,34 +42662,24 @@ components:
       additionalProperties: false
       properties:
         billingMode:
-          description: prepaid = 余额覆盖预扣才放行;postpaid = 余额可以为负,受月度超刷限额约束
+          description: prepaid = 钱包余额与套餐承担请求;postpaid = 请求记在组织的后付费账户上,钱包与套餐不动
           enum:
             - prepaid
             - postpaid
           type: string
-        levels:
-          description: 组织、团队与本人三个层级的限额与本月用量;预付费为空
-          items:
-            $ref: "#/components/schemas/OverdraftLevelView"
-          type: array
+        cap:
+          $ref: "#/components/schemas/OverdraftCapView"
+          description: 后付费组织授信额度的本月用量;预付费没有这个字段
         periodEnd:
           description: 当前计量月份的终点
           type: string
         periodStart:
           description: 当前计量月份(UTC 日历月)的起点
           type: string
-        remainingUnits:
-          description: 本月剩余的超刷额度;预付费为 0;null = 不封顶
-          format: int64
-          type:
-            - integer
-            - "null"
       required:
         - billingMode
         - periodStart
         - periodEnd
-        - remainingUnits
-        - levels
       type: object
     WalletCheckinOutputBody:
       additionalProperties: false
@@ -41477,7 +42825,7 @@ components:
           type: integer
         billing:
           $ref: "#/components/schemas/WalletBillingView"
-          description: 本组织的计费方式与本人本月的超刷额度
+          description: 本组织的计费方式与组织授信额度
         packages:
           items:
             $ref: "#/components/schemas/WalletPackageView"
@@ -41862,11 +43210,13 @@ components:
             - unavailable
           type: string
         hint:
-          description: availability 不是 ready 时需要换到的浏览器
+          description: availability 不是 ready 时需要换到的浏览器;native_app = 只能在接入该支付方式 SDK 的 App 内付款
           enum:
             - wechat
             - mobile_browser
             - system_browser
+            - alipay
+            - native_app
           type: string
         method:
           description: 选出的支付产品(PaymentMethodType)
@@ -41876,6 +43226,7 @@ components:
             - redirect
             - qrcode
             - jsapi
+            - app
           type: string
       required:
         - method
@@ -41885,6 +43236,9 @@ components:
     WalletPaymentCheckoutView:
       additionalProperties: false
       properties:
+        appParams:
+          $ref: "#/components/schemas/AppParams"
+          description: app 形态的拉起参数(支付宝 orderString 或微信 App 调起支付参数)
         authorizeUrl:
           description: jsapi 形态识别付款人前的网页授权地址;浏览器跳转该地址,授权后带 code 与 state 回到钱包页,再调用 completePaymentOrderPayer
           type: string
@@ -41895,8 +43249,12 @@ components:
             - redirect
             - qrcode
             - jsapi
+            - app
           type: string
         qrContent:
+          type: string
+        qrImageUrl:
+          description: qrcode 形态的二维码图片地址(网关只返回图片时携带,前端直接显示图片)
           type: string
         url:
           type: string
@@ -42600,6 +43958,122 @@ components:
         - clientDataJSON
         - attestationObject
       type: object
+    WebVitalMetricView:
+      additionalProperties: false
+      properties:
+        name:
+          description: 指标
+          enum:
+            - LCP
+            - INP
+            - CLS
+            - FCP
+            - TTFB
+          type: string
+        p75:
+          description: 第 75 百分位:CLS 没有单位，其余是毫秒
+          format: double
+          type: number
+        samples:
+          description: 样本数
+          format: int64
+          minimum: 0
+          type: integer
+        target:
+          description: "#1645 设计第 1 节的目标(p75 不超过它);没有目标时为 null"
+          format: double
+          type:
+            - number
+            - "null"
+      required:
+        - name
+        - p75
+        - samples
+        - target
+      type: object
+    WebVitalRouteView:
+      additionalProperties: false
+      properties:
+        device:
+          description: 设备类型
+          enum:
+            - mobile
+            - desktop
+          type: string
+        document:
+          description: 文档
+          enum:
+            - public
+            - console
+          type: string
+        metrics:
+          description: 有样本的指标
+          items:
+            $ref: "#/components/schemas/WebVitalMetricView"
+          type: array
+        route:
+          description: 路由模式(不含参数);* 是未找到页面
+          type: string
+      required:
+        - document
+        - route
+        - device
+        - metrics
+      type: object
+    WebVitalsView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/WebVitalsView.json
+          format: uri
+          readOnly: true
+          type: string
+        generatedAt:
+          description: 读取计数的时刻
+          format: date-time
+          type: string
+        hours:
+          description: 时间窗(小时)
+          format: int64
+          type: integer
+        routes:
+          description: 各路由的 p75,按文档、路由模式、设备排序
+          items:
+            $ref: "#/components/schemas/WebVitalRouteView"
+          type: array
+      required:
+        - hours
+        - generatedAt
+        - routes
+      type: object
+    WechatAppParams:
+      additionalProperties: false
+      properties:
+        appId:
+          type: string
+        nonceStr:
+          type: string
+        package:
+          type: string
+        partnerId:
+          type: string
+        prepayId:
+          type: string
+        sign:
+          type: string
+        timeStamp:
+          type: string
+      required:
+        - appId
+        - partnerId
+        - prepayId
+        - package
+        - nonceStr
+        - timeStamp
+        - sign
+      type: object
     WechatJSAPIParams:
       additionalProperties: false
       properties:
@@ -42757,7 +44231,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AnnouncementPageOutputBody"
+                $ref: "#/components/schemas/AnnouncementPageBody"
           description: OK
         default:
           content:
@@ -42874,7 +44348,7 @@ paths:
         - announcements
   /api/account/api-keys:
     get:
-      description: 返回当前认证用户在当前组织下创建的管理 API token(脱敏元数据 + 授予的权限集合 + 过期时间 + 最近使用时间)。绝不返回明文或 hash。需要 token:read 权限(org scope)。
+      description: 返回当前认证用户在当前组织下创建的管理 API token(脱敏元数据 + 授予形式 + 此刻的有效权限 + 过期时间 + 最近使用时间)。permissions 是创建时记录的授予形式(* / <resource>:* / <resource>:<action>);effectivePermissions 是授予形式按当前权限目录展开、与持有人此刻持有的权限取交集的结果,不受本次请求所用 token 的授予范围影响。绝不返回明文或 hash。需要 token:read 权限(org scope)。
       operationId: listAPIKeys
       responses:
         "200":
@@ -42898,7 +44372,7 @@ paths:
       tags:
         - tokens
     post:
-      description: 为当前用户签发管理 API token,并按模块授予权限。请求经该 token 认证时,有效权限 = 持有人当前的 Casbin 权限 ∩ 授予集合。授予集合不能包含创建人自己当前不持有的权限(超出 → 403 并写 guard.deny 审计);平台级权限只能由平台管理员授予。expiresAt 省略或为 null 表示永不过期;必须晚于当前时间,组织配置了 security.management_token.max_lifetime_days(> 0)时必填且不得晚于当前时间 + 该天数(违反 → 422)。人机验证动作 auth_token.create。明文仅首次创建(201)返回一次,DB 只存 HMAC hash,并在同事务写强审计;同一 Idempotency-Key 重放返回 200 且不含明文。需要 token:create 权限(org scope)。
+      description: 为当前用户签发管理 API token,并按模块授予权限。授予有三种形式:<resource>:<action> 单项(创建后不变);<resource>:* 整个模块,含该模块以后新增的动作;* 全部权限,含以后新增的模块。列出一个模块此刻的全部动作记为该模块授予,列出目录此刻的全部动作记为全部授予(调用方能记录该形式时);响应与列表返回记录下来的授予形式。请求经该 token 认证时,有效权限 = 授予形式按当前权限目录展开 ∩ 持有人此刻持有的权限(平台级动作只在持有人是平台管理员时计入)。授予不能超出创建人自己当前持有的权限:单项要求持有该动作;整模块要求持有该模块此刻的全部动作;全部授予要求持有目录此刻的全部动作(含平台级动作,只有平台管理员);经管理 token 调用时整模块与全部授予还要求该 token 本身授予了相同或更宽的形式(超出 → 403 并写 guard.deny 审计)。expiresAt 省略或为 null 表示永不过期;必须晚于当前时间,组织配置了 security.management_token.max_lifetime_days(> 0)时必填且不得晚于当前时间 + 该天数(违反 → 422)。人机验证动作 auth_token.create。明文仅首次创建(201)返回一次,DB 只存 HMAC hash,并在同事务写强审计;同一 Idempotency-Key 重放返回 200 且不含明文。需要 token:create 权限(org scope)。
       operationId: createAPIKey
       parameters:
         - description: 幂等键
@@ -42943,7 +44417,7 @@ paths:
         - tokens
   /api/account/api-keys/permission-catalog:
     get:
-      description: 按模块(Casbin 资源)返回可授予管理 token 的全部动作,动作按 CRUD 分组(category),不属于 CRUD 的动作归入 other。目录从 Casbin 权限目录派生。grantable 表示调用方本人当前在该组织持有该权限(平台级动作只有平台管理员可授予);maxLifetimeDays 是当前组织生效的 security.management_token.max_lifetime_days(0 = 不设上限)。需要 token:create 权限(org scope)。
+      description: 按模块(Casbin 资源)返回可授予管理 token 的全部动作,动作按 CRUD 分组(category),不属于 CRUD 的动作归入 other。目录从 Casbin 权限目录派生。动作的 grantable 表示调用方本人当前在该组织持有该权限(平台级动作只有平台管理员可授予);模块的 grantable 表示调用方可以授予整个模块(<resource>:*,含该模块以后新增的动作);allGrantable 表示调用方可以授予全部权限(*,含以后新增的模块)。经管理 token 调用时,整模块与全部授予还要求该 token 本身授予了相同或更宽的形式。maxLifetimeDays 是当前组织生效的 security.management_token.max_lifetime_days(0 = 不设上限)。需要 token:create 权限(org scope)。
       operationId: getAPIKeyPermissionCatalog
       responses:
         "200":
@@ -43139,7 +44613,7 @@ paths:
         - tokens
   /api/account/api-keys/{keyId}/rotate:
     post:
-      description: 为当前用户在当前组织下的一个有效管理 token 生成新密钥:旧密钥(Bearer 与其衍生的浏览器会话)立即失效,名称、授予的权限集合与过期时间保持不变。人机验证动作 auth_token.rotate;同事务写强审计 token.rotate。已吊销或已过期的 token 不能轮换(409)。需要 token:rotate 权限(org scope)。
+      description: 为当前用户在当前组织下的一个有效管理 token 生成新密钥:旧密钥(Bearer 与其衍生的浏览器会话)立即失效,名称、授予形式(单项、整模块与全部授予)与过期时间保持不变。人机验证动作 auth_token.rotate;同事务写强审计 token.rotate。已吊销或已过期的 token 不能轮换(409)。需要 token:rotate 权限(org scope)。
       operationId: rotateAPIKey
       parameters:
         - description: API key ID
@@ -43320,6 +44794,43 @@ paths:
       summary: 读取用户头像
       tags:
         - account-security
+  /api/account/bootstrap:
+    get:
+      description: 一次返回控制台外壳启动时需要的身份(me)、权限摘要、功能开关、偏好、当前组织生效的侧栏，以及顶栏的个人通知(最近 30 条)、公告(第一页 20 条)与待弹出的公告，各部分与对应的 GET 端点在同一身份上下文里的结果相同;公告按 locale 解析翻译。身份读取失败时按它的错误返回;其余任何一部分失败时整个请求按那一部分的错误返回。每类凭据只得到它能分别读取的部分，其余为 null:管理凭据(管理 Token 与它换取的浏览器会话)只在 token 授予且持有人角色持有 account:read、announcement:read 时得到偏好与公告，没有个人通知;LLM Token 只读会话只有身份与功能开关。X-CCH-Organization 的含义与 GET /api/account/me 相同。响应 private, no-store。
+      operationId: getAccountBootstrap
+      parameters:
+        - description: 界面语言：公告与待弹出的公告按它解析翻译(与 GET /api/account/announcements 的 locale 相同)
+          explode: false
+          in: query
+          name: locale
+          schema:
+            description: 界面语言：公告与待弹出的公告按它解析翻译(与 GET /api/account/announcements 的 locale 相同)
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountBootstrapView"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 控制台启动数据
+      tags:
+        - account
   /api/account/catalog/models:
     get:
       operationId: listCatalogModels
@@ -43478,6 +44989,31 @@ paths:
       summary: 当前账号可用客户端识别规则
       tags:
         - client-rules
+  /api/account/console/sidebar:
+    get:
+      description: 返回当前组织在品牌设置里生效的侧栏布局(组织没有设置时取全局设置;全平台上下文与没有组织的身份取全局设置)。侧栏布局只决定入口的顺序、隐藏、图标与组织添加的入口，内置入口的可见性仍由权限决定。已登录身份均可读取。
+      operationId: getConsoleSidebar
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsoleSidebarView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 读取当前组织生效的控制台侧栏
+      tags:
+        - account
   /api/account/default-org/join:
     post:
       description: 邮箱已验证的用户加入平台设置的默认组织及默认团队，角色为 org_user。注册关闭或未设默认组织返回 404；同事务写入 join_member 操作和审计。已属于组织或该用户的成员变更仍在进行时返回 409。
@@ -44535,12 +46071,12 @@ paths:
     get:
       operationId: getAccountPageLayout
       parameters:
-        - description: 页面 key(member-home/admin-overview/personal-center)
+        - description: 页面 key(admin-overview/personal-center)
           in: path
           name: page
           required: true
           schema:
-            description: 页面 key(member-home/admin-overview/personal-center)
+            description: 页面 key(admin-overview/personal-center)
             type: string
       responses:
         "200":
@@ -44566,12 +46102,12 @@ paths:
     put:
       operationId: putAccountPageLayout
       parameters:
-        - description: 页面 key(member-home/admin-overview/personal-center)
+        - description: 页面 key(admin-overview/personal-center)
           in: path
           name: page
           required: true
           schema:
-            description: 页面 key(member-home/admin-overview/personal-center)
+            description: 页面 key(admin-overview/personal-center)
             type: string
       requestBody:
         content:
@@ -45600,7 +47136,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserNotificationListOutputBody"
+                $ref: "#/components/schemas/UserNotificationListBody"
           description: OK
         default:
           content:
@@ -46074,7 +47610,7 @@ paths:
         - audit
   /api/account/orgs/{orgId}/billing:
     get:
-      description: 返回本组织的计费方式与组织层级的月度超刷限额与本月用量(只读;组织的计费方式与限额只由平台管理员修改)。需要 overdraft_limit:read 权限(org scope)。
+      description: 返回本组织的计费方式与组织授信额度上限的本月用量(只读;组织的计费方式与授信额度上限只由平台管理员修改)。需要 billing:read 权限(org scope)。
       operationId: getOrgBilling
       parameters:
         - description: 组织 ID
@@ -48387,7 +49923,7 @@ paths:
       tags:
         - llm-tokens
     patch:
-      description: 更新 LLM token 的名称、到期时间、路由设置(pinned 分组白名单 / intent 价格意向区间)、模型白名单、隐私过滤与浏览器登录;凭据本体不可变。同 tx 强审计留 before/after 与改动的字段。只能更新调用方本人的 token,他人 token 返回 404。需要 llm_token:update 权限或 token@self:write(org scope)。
+      description: 更新 LLM token 的名称、到期时间、路由设置(pinned 分组白名单 / intent 价格意向区间)、模型白名单、隐私过滤与浏览器登录;凭据本体不可变。名称规则与创建相同(去掉首尾空白后 1–128 个字符,不含换行等控制字符);已吊销的 token 不能修改名称与到期时间(409)。同 tx 强审计留 before/after(含改名前后的名称)与改动的字段。只能更新调用方本人的 token,他人 token 返回 404。需要 llm_token:update 权限或 token@self:write(org scope)。
       operationId: updateLLMToken
       parameters:
         - description: 组织 ID
@@ -49030,7 +50566,7 @@ paths:
         - members
   /api/account/orgs/{orgId}/members/{userId}/billing:
     get:
-      description: 返回本组织成员的钱包余额、在途预扣与信用额度,组织的计费方式与成员本月的超刷额度,以及调用方能否对这位成员执行账务操作(manageable / blockedReason)。目标须是本组织 active 成员(否则 404)。需要 member_billing:read 权限(org scope)。
+      description: 返回本组织成员的钱包余额、在途预扣与信用额度,组织的计费方式与组织授信额度,以及调用方能否对这位成员执行账务操作(manageable / blockedReason)。目标须是本组织 active 成员(否则 404)。需要 member_billing:read 权限(org scope)。
       operationId: getMemberBilling
       parameters:
         - description: 组织 ID
@@ -49131,7 +50667,7 @@ paths:
         - member-billing
   /api/account/orgs/{orgId}/members/{userId}/billing/balance-adjustments:
     post:
-      description: 经账本给成员钱包入账(增加,wallet_issuance → 钱包)或扣款(减少,钱包 → wallet_issuance),grant_id = mbill:<操作 ID>,同事务写操作记录与 member_billing.balance_adjust 强审计。减少在钱包锁内按组织的透支规则判定最低余额,低于它时需要 confirmBelowFloor = true,否则 409 member_balance_below_floor。需要 Idempotency-Key:同 key 同请求只入账一次并重放首次结果;目标规则同 revokeMemberPackage。需要 member_billing:adjust_balance 权限(org scope)。
+      description: 经账本给成员钱包入账(增加,wallet_issuance → 钱包)或扣款(减少,钱包 → wallet_issuance),grant_id = mbill:<操作 ID>,同事务写操作记录与 member_billing.balance_adjust 强审计。减少在钱包锁内判定钱包允许的最低余额,低于它时需要 confirmBelowFloor = true,否则 409 member_balance_below_floor。需要 Idempotency-Key:同 key 同请求只入账一次并重放首次结果;目标规则同 revokeMemberPackage。需要 member_billing:adjust_balance 权限(org scope)。
       operationId: adjustMemberBalance
       parameters:
         - description: 组织 ID
@@ -49186,7 +50722,7 @@ paths:
         - member-billing
   /api/account/orgs/{orgId}/members/{userId}/billing/balance-adjustments/preview:
     post:
-      description: 给出调整前后的余额与可用额、组织透支规则允许的最低余额(预付费:可用额不低于 0;后付费:受成员本月剩余的超刷额度约束;不封顶时为 null)与减少后是否低于它。不写入任何数据。需要 member_billing:adjust_balance 权限(org scope)。
+      description: 给出调整前后的余额与可用额、钱包允许的最低余额(可用额不低于 0 时的余额)与减少后是否低于它。不写入任何数据。需要 member_billing:adjust_balance 权限(org scope)。
       operationId: previewMemberBalanceAdjustment
       parameters:
         - description: 组织 ID
@@ -49867,7 +51403,7 @@ paths:
       tags:
         - tokens
     patch:
-      description: 修改本组织成员一把 LLM key 的名称、到期时间、路由设置、模型白名单、隐私过滤与浏览器登录,语义与 updateLLMToken 相同;凭据本体不可变。同事务写 llm_key.update 审计(含成员与改动的字段)。目标规则同 listMemberLLMKeys。需要 member_llm_key:update 权限(org scope)。
+      description: 修改本组织成员一把 LLM key 的名称、到期时间、路由设置、模型白名单、隐私过滤与浏览器登录,语义与 updateLLMToken 相同(名称规则与创建相同,已吊销的 key 不能修改名称与到期时间);凭据本体不可变。同事务写 llm_key.update 审计(含成员、改名前后的名称与改动的字段)。目标规则同 listMemberLLMKeys。需要 member_llm_key:update 权限(org scope)。
       operationId: updateMemberLLMKey
       parameters:
         - in: path
@@ -50092,91 +51628,6 @@ paths:
       summary: 轮换成员的 LLM key
       tags:
         - tokens
-  /api/account/orgs/{orgId}/members/{userId}/overdraft-limit:
-    get:
-      description: 返回成员的月度超刷限额与本月用量,附带组织的计费方式与组织限额。需要 overdraft_limit:read 权限(org scope)。
-      operationId: getMemberOverdraftLimit
-      parameters:
-        - description: 组织 ID
-          in: path
-          name: orgId
-          required: true
-          schema:
-            description: 组织 ID
-            type: string
-        - description: 成员的用户 ID
-          in: path
-          name: userId
-          required: true
-          schema:
-            description: 成员的用户 ID
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OverdraftLimitView"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/CchpErrorModel"
-          description: Error
-      security:
-        - userSessionCookie: []
-        - bearerUserSession: []
-        - managementBearer: []
-        - apiKeySession: []
-      summary: 成员月度超刷限额
-      tags:
-        - orgs
-    put:
-      description: 设置或清除成员的月度超刷限额(同 tx 强审计)。只在组织为后付费时可写,限额不得高于组织限额。需要 overdraft_limit:write 权限(org scope)。
-      operationId: updateMemberOverdraftLimit
-      parameters:
-        - description: 组织 ID
-          in: path
-          name: orgId
-          required: true
-          schema:
-            description: 组织 ID
-            type: string
-        - description: 成员的用户 ID
-          in: path
-          name: userId
-          required: true
-          schema:
-            description: 成员的用户 ID
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OverdraftLimitBody"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OverdraftLimitView"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/CchpErrorModel"
-          description: Error
-      security:
-        - userSessionCookie: []
-        - bearerUserSession: []
-        - managementBearer: []
-        - apiKeySession: []
-      summary: 设置成员月度超刷限额
-      tags:
-        - orgs
   /api/account/orgs/{orgId}/members/{userId}/reactivate:
     post:
       description: 同事务把 suspended membership 置回 active、清除管理员停用标记、恢复组织角色 / 自定义角色 / 团队角色 grouping、写强审计并入队 reactivate_member;worker 复核成员、邮箱验证与组织状态。actor 必须严格高于目标成员。需要 member:remove 权限(org scope)。
@@ -51662,7 +53113,7 @@ paths:
         - admin-permissions
   /api/account/orgs/{orgId}/provider-groups:
     get:
-      description: 按名称排序(同名不会出现:名称在组织内唯一)。不返回成员,memberCount 读计数,读取量与成员数无关;成员按页读取见 listProviderKeyPage 的 groupIds。limit / cursor 游标分页。需要 provider:read 权限(org scope)。
+      description: 按名称排序(同名不会出现:名称在组织内唯一)。不返回成员,memberCount 读计数,读取量与成员数无关;成员按页读取见 listProviderKeyPage 的 groupIds。limit / cursor 游标分页。orgId 是当前组织或其可管理后代组织(组织详情页的供应商分组设置);平台管理员在全平台上下文里可读任一组织。跨组织读取先写 platform.tenant.read 审计。需要 provider:read 权限;后代组织还要求组织管理员角色与 view_descendant 层级授权。
       operationId: listProviderGroups
       parameters:
         - description: 组织 ID
@@ -52505,7 +53956,7 @@ paths:
         - providers
   /api/account/orgs/{orgId}/providers/keys/bulk-jobs:
     get:
-      description: 返回组织里未结束的任务与最近 10 分钟内结束的任务(至多 20 个,最新的在前),列表页据此显示进度。需要 provider:read 权限(org scope)。
+      description: 返回组织里未结束的任务与最近 10 分钟内结束的任务(至多 20 个,最新的在前),列表页据此显示进度;结束的任务带 visibleUntil,与 serverTime 之差是它还会留在列表里的时长。需要 provider:read 权限(org scope)。
       operationId: listProviderKeyBulkJobs
       parameters:
         - description: 组织 ID
@@ -52656,7 +54107,7 @@ paths:
         - provider-keys
   /api/account/orgs/{orgId}/providers/keys/bulk-jobs/{jobId}/undo:
     post:
-      description: 为一个已完成的拖动排序任务创建反向执行的任务,恢复它改过的优先级。需要 provider_key:write 权限(org scope)。
+      description: 为一个已完成的拖动排序任务创建反向执行的任务,恢复它改过的优先级;撤销任务本身也可以撤销,即重做原来的调整(undoKind = redo)。一个任务只能撤销一次:已有撤销任务(排队、执行中、已完成,或结束时改动过密钥)时返回 409 invalid_state_transition,detail 写明那个撤销任务,不创建新任务;同一个任务的并发撤销只产生一个撤销任务。需要 provider_key:write 权限(org scope)。
       operationId: undoProviderKeyReorder
       parameters:
         - description: 组织 ID
@@ -53521,7 +54972,7 @@ paths:
         - provider-keys
   /api/account/orgs/{orgId}/providers/keys/upstream/fetch:
     post:
-      description: 读取一组密钥的上游余额与 / 或分组倍率。余额来源依次为密钥的 balance_query_url、sub2api(/v1/usage)、new-api(供应商配置了管理令牌时)、OpenAI 兼容 billing 接口;分组倍率来自 sub2api(/v1/sub2api/billing)与 new-api。记录结果、按余额设置暂停 / 解除调度并发布 provider_key.upstream_updated 事件;倍率不写入,由 apply 端点确认后写入。业务流限流 provider.key.upstream_fetch = 10 次 / 分钟 / 用户。需要 provider_key:write 权限(org scope)。
+      description: 读取一组密钥的上游余额与 / 或分组倍率。余额来源依次为密钥的 balance_query_url、CCHP(/v1/cchp/account)、sub2api(/v1/usage)、new-api(供应商配置了管理令牌时)、OpenAI 兼容 billing 接口;分组倍率来自 CCHP(/v1/cchp/account)、sub2api(/v1/sub2api/billing)与 new-api。供应商没有配置管理令牌时读公开的 /api/status 识别 new-api 系列站点,识别到时余额与倍率的原因码是 new_api_management_token_missing(余额仍读 billing 接口)。记录结果、按余额设置暂停 / 解除调度并发布 provider_key.upstream_updated 事件;倍率不写入,由 apply 端点确认后写入。业务流限流 provider.key.upstream_fetch = 10 次 / 分钟 / 用户。需要 provider_key:write 权限(org scope)。
       operationId: fetchProviderKeysUpstream
       parameters:
         - description: 组织 ID
@@ -53602,7 +55053,7 @@ paths:
         - provider-keys
   /api/account/orgs/{orgId}/providers/upstream/cooldowns:
     get:
-      description: sub2api 与 new-api 两种方式都失败的供应商或密钥进入冷却,冷却期内定时任务不再探测。需要 provider:read 权限(org scope)。
+      description: CCHP、sub2api 与 new-api 各种方式都失败的供应商或密钥进入冷却,冷却期内定时任务不再探测。需要 provider:read 权限(org scope)。
       operationId: listProviderUpstreamCooldowns
       parameters:
         - description: 组织 ID
@@ -54666,7 +56117,7 @@ paths:
         - provider-keys
   /api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/balance:
     get:
-      description: 按自定义 balance_query_url、sub2api、New API(供应商配置了管理令牌时)、OpenAI 兼容 billing 顺序查询上游余额(与定时任务 upstream_probe 同一实现);结果缓存 30 秒,并记入密钥的上游状态。
+      description: 按自定义 balance_query_url、CCHP、sub2api、New API(供应商配置了管理令牌时)、OpenAI 兼容 billing 顺序查询上游余额(与定时任务 upstream_probe 同一实现);结果缓存 30 秒,并记入密钥的上游状态。没有可用的余额来源时返回 200 与 status=unsupported、reason;某个来源读取失败时返回 502 provider_key_balance_query_failed(30248),params.source 与 params.reason 给出来源与原因码。自动获取余额的开关与供应商 / 密钥名单(upstream_probe.balance.*)限制自动读取:不带 refresh 的读取(控制台余额徽标的自动刷新)对不参与的密钥返回 status=not_tracked,不访问上游;refresh=true 是管理员显式读取,不受开关与名单限制。
       operationId: getProviderKeyBalance
       parameters:
         - description: 组织 ID
@@ -54857,6 +56308,158 @@ paths:
         - managementBearer: []
         - apiKeySession: []
       summary: 测活单把供应商密钥
+      tags:
+        - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/network-proxies:
+    get:
+      description: 密钥自己的代理组(密码不回显);为空表示跟随供应商或全局代理。需要 provider:read 权限(org scope)。
+      operationId: getProviderKeyNetworkProxies
+      parameters:
+        - description: 组织 ID(与 Identity 一致)
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID(与 Identity 一致)
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+        - description: 供应商密钥 ID
+          in: path
+          name: keyId
+          required: true
+          schema:
+            description: 供应商密钥 ID
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkProxySetView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 读取供应商密钥的出站代理组
+      tags:
+        - providers
+    put:
+      description: 整组替换密钥的代理组:这把密钥的全部出站请求经它出站,优先于供应商的代理组与全局代理。空数组表示跟随供应商或全局代理。省略 password 的代理沿用已保存的密码(地址与用户名不变时)。同事务写 provider.key.update 审计,提交后刷新路由图。需要 provider_key:write 权限(org scope)。
+      operationId: saveProviderKeyNetworkProxies
+      parameters:
+        - description: 组织 ID(与 Identity 一致)
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID(与 Identity 一致)
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+        - description: 供应商密钥 ID
+          in: path
+          name: keyId
+          required: true
+          schema:
+            description: 供应商密钥 ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkProxySetInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkProxySetView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 保存供应商密钥的出站代理组
+      tags:
+        - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/network-proxies/test:
+    post:
+      description: 逐个代理请求一次测试目标(默认是供应商的第一个启用端点;不修改持久状态,不影响出站选路)。全局设置打开代理链时代理服务器经全局代理连接。需要 provider:test 权限(org scope);每个用户每分钟最多 10 次。
+      operationId: testProviderKeyNetworkProxies
+      parameters:
+        - description: 组织 ID(与 Identity 一致)
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID(与 Identity 一致)
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+        - description: 供应商密钥 ID
+          in: path
+          name: keyId
+          required: true
+          schema:
+            description: 供应商密钥 ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkProxyTestBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkProxyTestView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 测试供应商密钥的出站代理
       tags:
         - providers
   /api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/purge:
@@ -55859,6 +57462,137 @@ paths:
       summary: 只读预览上游模型列表
       tags:
         - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/network-proxies:
+    get:
+      description: 供应商自己的代理组(密码不回显);为空表示跟随全局代理。需要 provider:read 权限(org scope)。
+      operationId: getProviderNetworkProxies
+      parameters:
+        - description: 组织 ID(与 Identity 一致)
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID(与 Identity 一致)
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkProxySetView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 读取供应商的出站代理组
+      tags:
+        - providers
+    put:
+      description: 整组替换供应商的代理组:这个供应商的全部出站请求(请求转发、测活、余额与倍率、模型同步、端点探测、站点图标等)经它出站,设了自己代理组的密钥除外。空数组表示跟随全局代理。省略 password 的代理沿用已保存的密码(地址与用户名不变时)。同事务写 provider.update 审计,提交后刷新路由图。需要 provider:write 权限(org scope)。
+      operationId: saveProviderNetworkProxies
+      parameters:
+        - description: 组织 ID(与 Identity 一致)
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID(与 Identity 一致)
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkProxySetInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkProxySetView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 保存供应商的出站代理组
+      tags:
+        - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/network-proxies/test:
+    post:
+      description: 逐个代理请求一次测试目标(默认是供应商的第一个启用端点;不修改持久状态,不影响出站选路)。全局设置打开代理链时代理服务器经全局代理连接。需要 provider:test 权限(org scope);每个用户每分钟最多 10 次。
+      operationId: testProviderNetworkProxies
+      parameters:
+        - description: 组织 ID(与 Identity 一致)
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID(与 Identity 一致)
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkProxyTestBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkProxyTestView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 测试供应商的出站代理
+      tags:
+        - providers
   /api/account/orgs/{orgId}/providers/{providerId}/test:
     post:
       description: 对指定(或首个 active)endpoint 的 base_url 做 GET reachability probe，不选择 Catalog operation、不构造 wire body、不读取 provider key。返回状态 + 延迟 + 分类，出站经 SSRF 安全校验。需要 provider:test 权限(org scope,限流复用 5/min/user)。
@@ -56416,9 +58150,48 @@ paths:
       summary: 更新组织存储偏好
       tags:
         - storage-config
+  /api/account/orgs/{orgId}/storage-config/test:
+    post:
+      description: 用表单中的 S3 兼容存储配置逐步测试连接，不保存配置。经生产写入使用的同一个客户端(按系统设置的出站地址限制判定),在组织前缀下的临时目录里执行单段写入、大小未知且超过一段的分段写入、读回比对、列出、批量删除、删除并确认已删除;任一步失败时已写入的测试对象随即删除。失败的步骤带存储服务应答的操作名、HTTP 状态、错误码、说明与请求 ID,被出站地址限制拒绝时 egressBlocked为 true。secret 留空时使用已保存的值。外调前同事务写 storage_config.test 强审计。需要 organization:write 权限(org scope)。
+      operationId: testOrgStorageConfig
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestStorageConfigInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestResult"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 测试组织存储偏好的连接
+      tags:
+        - storage-config
   /api/account/orgs/{orgId}/task-webhook-secret:
     get:
-      description: 返回 media_task.client_webhook_secret 的元数据:是否已生成、生成与轮换时间、上一个密钥的签名截止时间;不回显密钥。需要 organization:read 权限(org scope)。
+      description: 返回 media_task.client_webhook_secret 的元数据:是否已生成、生成与轮换时间、上一个密钥的签名截止时间;不回显密钥。orgId 是当前组织或其可管理后代组织;平台管理员在全平台上下文里可读任一组织。跨组织读取先写 platform.tenant.read 审计。需要 organization:read 权限;后代组织还要求组织管理员角色与 view_descendant 层级授权。
       operationId: getTaskWebhookSecret
       parameters:
         - description: 组织 ID
@@ -56451,7 +58224,7 @@ paths:
         - task-webhooks
   /api/account/orgs/{orgId}/task-webhook-secret/reveal:
     post:
-      description: 返回 media_task.client_webhook_secret 的当前密钥(组织还没有时生成)。客户端用它按 Standard Webhooks 校验异步任务回调。同 tx 强审计 media_task.client_webhook_secret.reveal。需要 organization:write 权限(org scope)。
+      description: 返回 media_task.client_webhook_secret 的当前密钥(组织还没有时生成)。客户端用它按 Standard Webhooks 校验异步任务回调。同 tx 强审计 media_task.client_webhook_secret.reveal。orgId 必须是当前组织;平台管理员在全平台上下文里可查看任一组织的密钥，审计相同。需要 organization:write 权限(org scope)。
       operationId: revealTaskWebhookSecret
       parameters:
         - description: 组织 ID
@@ -56488,7 +58261,7 @@ paths:
         - task-webhooks
   /api/account/orgs/{orgId}/task-webhook-secret/rotate:
     post:
-      description: 生成新的 media_task.client_webhook_secret 并返回;上一个密钥在轮换窗口内继续签名，回调的 webhook-signature 同时带两个签名。同 tx 强审计 media_task.client_webhook_secret.rotate。需要 organization:write 权限(org scope)。
+      description: 生成新的 media_task.client_webhook_secret 并返回;上一个密钥在轮换窗口内继续签名，回调的 webhook-signature 同时带两个签名。同 tx 强审计 media_task.client_webhook_secret.rotate。orgId 必须是当前组织;平台管理员在全平台上下文里可轮换任一组织的密钥，审计相同。需要 organization:write 权限(org scope)。
       operationId: rotateTaskWebhookSecret
       parameters:
         - description: 组织 ID
@@ -56984,91 +58757,6 @@ paths:
       summary: 变更团队成员角色
       tags:
         - team
-  /api/account/orgs/{orgId}/teams/{teamId}/overdraft-limit:
-    get:
-      description: 返回团队的月度超刷限额与本月用量,附带组织的计费方式与组织限额。需要 overdraft_limit:read 权限(org scope)。
-      operationId: getTeamOverdraftLimit
-      parameters:
-        - description: 组织 ID
-          in: path
-          name: orgId
-          required: true
-          schema:
-            description: 组织 ID
-            type: string
-        - description: 团队 ID
-          in: path
-          name: teamId
-          required: true
-          schema:
-            description: 团队 ID
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OverdraftLimitView"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/CchpErrorModel"
-          description: Error
-      security:
-        - userSessionCookie: []
-        - bearerUserSession: []
-        - managementBearer: []
-        - apiKeySession: []
-      summary: 团队月度超刷限额
-      tags:
-        - team
-    put:
-      description: 设置或清除团队的月度超刷限额(同 tx 强审计)。只在组织为后付费时可写,限额不得高于组织限额。需要 overdraft_limit:write 权限(org scope)。
-      operationId: updateTeamOverdraftLimit
-      parameters:
-        - description: 组织 ID
-          in: path
-          name: orgId
-          required: true
-          schema:
-            description: 组织 ID
-            type: string
-        - description: 团队 ID
-          in: path
-          name: teamId
-          required: true
-          schema:
-            description: 团队 ID
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OverdraftLimitBody"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OverdraftLimitView"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/CchpErrorModel"
-          description: Error
-      security:
-        - userSessionCookie: []
-        - bearerUserSession: []
-        - managementBearer: []
-        - apiKeySession: []
-      summary: 设置团队月度超刷限额
-      tags:
-        - team
   /api/account/passkeys:
     get:
       operationId: listAccountPasskeys
@@ -57465,7 +59153,7 @@ paths:
       tags:
         - quota
     post:
-      description: 为当前组织(或 orgId 指定的可管理后代组织)的指定 scope 创建 quota policy;scopeType=organization / organization_member 时 scopeId 必须等于目标组织(否则 422);其余 scope 的 scopeId 必须指向目标组织的实体,不存在或属于其他组织时返回 422 referenced_resource_not_found(两种情况响应相同),实体校验与写入在同一事务;须落在租户权益内(超权益 403)。同 tx 写强审计。需要 quota_policy:write 权限(org scope);后代组织还要求组织管理员角色与 manage_descendant 层级授权。
+      description: 为当前组织(或 orgId 指定的可管理后代组织)的指定 scope 创建 quota policy;scopeType=organization / organization_member 时 scopeId 必须等于目标组织(否则 422);其余 scope 的 scopeId 必须指向目标组织的实体,不存在或属于其他组织时返回 422 referenced_resource_not_found(两种情况响应相同),实体校验与写入在同一事务;须落在租户权益内(超权益 403)。同 tx 写强审计。需要 quota_policy:write 权限(org scope);后代组织还要求组织管理员角色与 manage_descendant 层级授权。各层级的设置者:organization 只有平台管理员;organization_member 与 team 是组织管理员;user 是用户所在团队(含上级团队)的团队管理员与组织管理员;其余调用方 403。
       operationId: createQuotaPolicy
       parameters:
         - description: 目标组织 ID;省略或等于当前组织 = 当前组织。指向其他组织时,该组织必须是当前组织的可管理后代(组织管理员 + 层级授权 manage_descendant)。
@@ -57512,7 +59200,7 @@ paths:
         - quota
   /api/account/quota/policies/{policyId}:
     delete:
-      description: 删除当前组织(或 orgId 指定的可管理后代组织)的 quota policy(不存在 / 他 org → 404)。同 tx 写强审计。需要 quota_policy:write 权限(org scope);后代组织还要求组织管理员角色与 manage_descendant 层级授权。
+      description: 删除当前组织(或 orgId 指定的可管理后代组织)的 quota policy(不存在 / 他 org → 404)。同 tx 写强审计。需要 quota_policy:write 权限(org scope);后代组织还要求组织管理员角色与 manage_descendant 层级授权。删除与创建同一设置者规则(按策略的 scope)。
       operationId: deleteQuotaPolicy
       parameters:
         - description: quota policy ID
@@ -57548,7 +59236,7 @@ paths:
       tags:
         - quota
     patch:
-      description: 部分更新当前组织(或 orgId 指定的可管理后代组织)的 quota policy:limits 只覆盖给出的字段,省略的字段保持原值;windowPolicy 只替换给出的维度;limits 若给出,合并后的结果须落在租户权益内(超权益 403)。同 tx 写强审计。需要 quota_policy:write 权限(org scope);后代组织还要求组织管理员角色与 manage_descendant 层级授权。
+      description: 部分更新当前组织(或 orgId 指定的可管理后代组织)的 quota policy:limits 只覆盖给出的字段,省略的字段保持原值;windowPolicy 只替换给出的维度;limits 若给出,合并后的结果须落在租户权益内(超权益 403)。同 tx 写强审计。需要 quota_policy:write 权限(org scope);后代组织还要求组织管理员角色与 manage_descendant 层级授权。修改与创建同一设置者规则(按策略的 scope)。
       operationId: updateQuotaPolicy
       parameters:
         - description: quota policy ID
@@ -57629,7 +59317,7 @@ paths:
         - quota
   /api/account/quota/status:
     get:
-      description: 列出目标组织(或 orgId 指定的可管理后代组织)里一个 scope 每个设有上限的维度:上限、与准入一致的实时用量、余量、当前计数覆盖的窗口与固定窗口的清零时刻。需要 quota_policy:read 权限(org scope);organization scope 另要求能看到组织全部用量(组织管理员);只持有 token@self:read 的成员只能查询 scopeType=user + 本人 ID 或 scopeType=user_key + 本人密钥。用量不可读(没有 Dragonfly)时返回 503。
+      description: 列出目标组织(或 orgId 指定的可管理后代组织)里一个 scope 每个设有上限的维度,以及组织里其他层级设有上限、这个 scope 只计数的花费维度(limit = 0):上限、与准入一致的实时用量、余量、当前生效的窗口、清零时刻与下一个窗口的起点。团队的用量含下级团队,组织的用量含下级组织。需要 quota_policy:read 权限(org scope);organization scope 另要求能看到组织全部用量(组织管理员);只持有 token@self:read 的成员只能查询 scopeType=user + 本人 ID 或 scopeType=user_key + 本人密钥。用量不可读(没有 Dragonfly)时返回 503。
       operationId: getQuotaStatus
       parameters:
         - description: 目标组织 ID;省略或等于当前组织 = 当前组织。指向其他组织时,该组织必须是当前组织的可管理后代(组织管理员 + 层级授权 view_descendant)。
@@ -57685,6 +59373,31 @@ paths:
         - managementBearer: []
         - apiKeySession: []
       summary: scope 的限额用量、余量与窗口
+      tags:
+        - quota
+  /api/account/quota/status/llm-key:
+    get:
+      description: 列出 LLM Token 只读会话绑定的 token(scopeType=user_key)每个设有上限的维度:上限、与准入一致的实时用量、余量、当前生效的窗口、清零时刻与下一个窗口的起点。需要 usage:read 权限(org scope),只接受 LLM Token 只读会话，其他身份返回 403。用量不可读(没有 Dragonfly)时返回 503。
+      operationId: getLLMKeyQuotaStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetQuotaStatusOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: LLM Token 的限额用量、余量与窗口
       tags:
         - quota
   /api/account/referral:
@@ -58718,12 +60431,12 @@ paths:
             items:
               type: string
             type: array
-        - description: 任务 ID、客户端请求 ID 或 prompt 片段
+        - description: 任务 ID、cchp_id、上游任务 ID(task:inspect)、客户端请求 ID 或 prompt 片段
           explode: false
           in: query
           name: q
           schema:
-            description: 任务 ID、客户端请求 ID 或 prompt 片段
+            description: 任务 ID、cchp_id、上游任务 ID(task:inspect)、客户端请求 ID 或 prompt 片段
             maxLength: 512
             type: string
       responses:
@@ -58974,6 +60687,41 @@ paths:
       summary: 下载任务结果文件
       tags:
         - tasks
+  /api/account/usage/batch:
+    post:
+      description: 仪表盘当前布局里各组件的用量查询合成一个请求:每一项是 GET /api/account/usage/summary、GET /api/account/usage/timeseries、GET /api/account/usage/leaderboard 或 GET /api/account/usage/view-policy 的查询参数，按顺序返回每一项单独请求时的状态码与响应体(权限、参数校验与默认值都与单独请求相同，一项失败不影响其他项)。需要 usage:read 权限(org scope)。响应 private, no-store。
+      operationId: batchUsageQueries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsageBatchInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageBatchOutputBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 批量读取用量汇总、趋势、排行与用量视图设置
+      tags:
+        - usage
   /api/account/usage/by-key:
     get:
       description: 返回当前查询范围按 key 维的用量聚合排行。需要 usage:read 权限(org scope)。
@@ -59936,6 +61684,24 @@ paths:
             items:
               type: string
             type: array
+        - description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
+          explode: false
+          in: query
+          name: providerKeyIds
+          schema:
+            description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
+            items:
+              type: string
+            type: array
+        - description: 排除请求级供应商密钥;没有命中密钥的请求保留
+          explode: false
+          in: query
+          name: excludeProviderKeyIds
+          schema:
+            description: 排除请求级供应商密钥;没有命中密钥的请求保留
+            items:
+              type: string
+            type: array
         - description: 按调用使用的密钥筛选
           explode: false
           in: query
@@ -60054,15 +61820,6 @@ paths:
           schema:
             description: 尝试链是否涉及多个供应商
             type: boolean
-        - description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
-          explode: false
-          in: query
-          name: providerKeyIds
-          schema:
-            description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
-            items:
-              type: string
-            type: array
         - description: 只保留总耗时不少于该毫秒数的请求
           explode: false
           in: query
@@ -60275,7 +62032,7 @@ paths:
         - usage
   /api/account/usage/logs/export:
     get:
-      description: 提交当前组织用量 CSV 导出 job(202 + job_id;24h 同参幂等)。没有 usage:inspect 的身份(组织管理员以外)导出的 provider_id / provider_name / provider_key_name / endpoint_id 列为空，按供应商、端点、供应商密钥或尝试链筛选返回 403。需要 usage:read 权限(org scope)。
+      description: 提交当前组织用量 CSV 导出 job(202 + job_id;24h 同参幂等),筛选条件与 listUsageLogs 相同。CSV 列依次为 request_id、started_at、status、user_id、team_id、api_key_id、session_id、requested_model、final_model、provider_id、provider_name、provider_key_name、endpoint_id、input_tokens、output_tokens、cache_read_tokens、cache_write_tokens、cost_units、error_category、provider_key_id、adjusted_cost_units、supplier_cost_units、platform_cost_units。token 与 cost_units 与请求记录列表相同(含计费更正差额,input_tokens 含缓存读与缓存写);金额单位是 credit units(1 credit = 10^10 units)。adjusted_cost_units 是扣除未撤回的补偿与回扣后的净花费，从未校正过的请求为空。supplier_cost_units / platform_cost_units 是请求全部尝试的供应商成本与其中平台承担的部分，只对组织管理员(权限摘要 supplier_cost_visible)有值，其余身份为空;有尝试的供应商成本未知时为空。没有 usage:inspect 的身份(组织管理员以外)导出的 provider_id / provider_name / provider_key_name / provider_key_id / endpoint_id 列为空，按供应商、端点、供应商密钥或尝试链筛选返回 403。需要 usage:read 权限(org scope)。
       operationId: exportUsageLogs
       parameters:
         - description: 导出格式(csv)
@@ -60356,6 +62113,24 @@ paths:
           name: excludeProviderIds
           schema:
             description: 排除最终命中的供应商
+            items:
+              type: string
+            type: array
+        - description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
+          explode: false
+          in: query
+          name: providerKeyIds
+          schema:
+            description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
+            items:
+              type: string
+            type: array
+        - description: 排除请求级供应商密钥;没有命中密钥的请求保留
+          explode: false
+          in: query
+          name: excludeProviderKeyIds
+          schema:
+            description: 排除请求级供应商密钥;没有命中密钥的请求保留
             items:
               type: string
             type: array
@@ -60477,15 +62252,6 @@ paths:
           schema:
             description: 尝试链是否涉及多个供应商
             type: boolean
-        - description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
-          explode: false
-          in: query
-          name: providerKeyIds
-          schema:
-            description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
-            items:
-              type: string
-            type: array
         - description: 只保留总耗时不少于该毫秒数的请求
           explode: false
           in: query
@@ -60678,7 +62444,7 @@ paths:
         - usage
   /api/account/usage/logs/filter-options:
     get:
-      description: 返回时间范围内某个字段出现过的值与请求数,可见范围与请求记录列表相同;provider / endpoint 字段与按供应商、端点、尝试链的筛选条件只对具备 usage:inspect 的身份(组织管理员)开放，其余身份返回 403。需要 usage:read 权限(org scope)。
+      description: 返回时间范围内某个字段出现过的值与请求数,可见范围与请求记录列表相同;provider / provider_key / endpoint 字段与按供应商、供应商密钥、端点、尝试链的筛选条件只对具备 usage:inspect 的身份(组织管理员)开放，其余身份返回 403。需要 usage:read 权限(org scope)。
       operationId: listUsageLogFilterOptions
       parameters:
         - description: 候选字段
@@ -60692,6 +62458,7 @@ paths:
               - user
               - api_key
               - provider
+              - provider_key
               - endpoint
               - model
               - status_code
@@ -60789,6 +62556,24 @@ paths:
           name: excludeProviderIds
           schema:
             description: 排除最终命中的供应商
+            items:
+              type: string
+            type: array
+        - description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
+          explode: false
+          in: query
+          name: providerKeyIds
+          schema:
+            description: 按请求级供应商密钥筛选:最终胜出的密钥,没有胜出 attempt 时为交付了内容的密钥
+            items:
+              type: string
+            type: array
+        - description: 排除请求级供应商密钥;没有命中密钥的请求保留
+          explode: false
+          in: query
+          name: excludeProviderKeyIds
+          schema:
+            description: 排除请求级供应商密钥;没有命中密钥的请求保留
             items:
               type: string
             type: array
@@ -61233,7 +63018,7 @@ paths:
         - usage
   /api/account/usage/logs/{requestId}/summary:
     get:
-      description: 返回调用者自己的单个请求的基本信息、计费、耗时与命中的、调用者自己的用户 scope 与密钥 scope 上的入站与响应覆写。普通登录只能读 user_id 是调用者的请求，密钥控制台登录只能读这把密钥的请求;请求不属于调用者时与不存在相同，返回 404。不含对话内容与归档的入口、供应商信息、上游模型名、供应商成本、尝试与路由信息和决策链。需要 usage:read 权限(org scope)。
+      description: 返回调用者在请求记录列表里可见的单个请求的基本信息、计费、耗时与命中的、调用者自己的用户 scope 与密钥 scope 上的入站与响应覆写。可读范围与请求记录列表相同：成员读本人的请求，团队管理员读所管理团队的请求(含团队成员个人密钥的请求)与本人的请求，组织管理员读组织内的请求，密钥控制台登录读这把密钥的请求;范围之外的请求与不存在的请求回答相同(404,刚结束的请求为「正在定位」)。不含对话内容与归档的入口、供应商信息、上游模型名、供应商成本、尝试与路由信息和决策链。需要 usage:read 权限(org scope)。
       operationId: getMyUsageLog
       parameters:
         - description: 逻辑请求 ID
@@ -61268,7 +63053,7 @@ paths:
         - bearerUserSession: []
         - managementBearer: []
         - apiKeySession: []
-      summary: 我的请求详情
+      summary: 请求详情(不含路由信息)
       tags:
         - usage
   /api/account/usage/model-share:
@@ -61720,7 +63505,7 @@ paths:
         - usage
   /api/account/usage/view-policy:
     get:
-      description: 返回调用者生效的用量视图设置：按 global → organization → team(调用者所在团队及其祖先团队)→ user 求值的 usage_view.default_granularity 与 usage_view.show_breakdown。用量趋势图在查看者自己没有选择时从这两个值开始。需要 usage:read 权限(org scope)。
+      description: 返回调用者生效的用量视图设置：按 global → organization → team(调用者所在团队及其祖先团队)→ user 求值的 usage_view.default_granularity 与 usage_view.show_breakdown;没有选择组织的平台管理员读取平台层的取值(global 与 organization:*)。用量趋势图在查看者自己没有选择时从这两个值开始。需要 usage:read 权限(org scope)。
       operationId: getUsageViewPolicy
       responses:
         "200":
@@ -65015,6 +66800,92 @@ paths:
       summary: 用一段文本测试正则规则
       tags:
         - admin-moderation
+  /api/admin/network-proxy:
+    get:
+      description: 全局代理组(挑选方式与有序的代理,密码不回显)与「供应商代理经全局代理连接」开关。只有平台管理员可读取(config:read,system scope)。
+      operationId: getGlobalNetworkProxy
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalNetworkProxyView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 读取全局出站代理
+      tags:
+        - admin-config
+    put:
+      description: 整组替换全局代理组与开关:网关与控制台的全部出站连接经全局代理(设了自己代理的供应商与密钥除外)。省略 password 的代理沿用已保存的密码(地址与用户名不变时)。经配置发布栈发布 network.proxy(同事务审计),本进程立即生效;配置了 DNS over QUIC 服务器时不能设置全局代理。只有平台管理员可修改(config:write)。
+      operationId: saveGlobalNetworkProxy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GlobalNetworkProxyInput"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GlobalNetworkProxyView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 保存全局出站代理
+      tags:
+        - admin-config
+  /api/admin/network-proxy/test:
+    post:
+      description: 逐个代理请求一次测试目标(不修改持久状态,不影响出站选路),返回每个代理是否拿到应答、耗时与失败的阶段。只有平台管理员可测试(config:read);每个用户每分钟最多 10 次。
+      operationId: testGlobalNetworkProxy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkProxyTestBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkProxyTestView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 测试全局出站代理
+      tags:
+        - admin-config
   /api/admin/observability/archive/destinations:
     get:
       operationId: listArchiveDestinations
@@ -66544,7 +68415,7 @@ paths:
         - admin-orgs
   /api/admin/orgs/{orgId}/billing:
     get:
-      description: 返回组织的计费方式(预付费 / 后付费)与组织层级的月度超刷限额与本月用量。需要 organization:read 权限(system scope)。
+      description: 返回组织的计费方式(预付费 / 后付费)与组织授信额度上限的本月用量。需要 organization:read 权限(system scope)。
       operationId: getAdminOrgBilling
       parameters:
         - description: 组织 ID
@@ -66576,7 +68447,7 @@ paths:
       tags:
         - admin-orgs
     put:
-      description: 设置组织的计费方式与组织的月度超刷限额(同 tx 强审计 organization.billing_mode.update)。预付费组织的请求只在钱包可用额覆盖预扣时放行;后付费组织的钱包可以为负,受组织、团队与成员的月度超刷限额约束。需要 organization:write 权限(system scope),只有平台管理员能调用。
+      description: 设置组织的计费方式与组织的月度授信额度上限(同 tx 强审计 organization.billing_mode.update)。预付费组织的请求由成员钱包与套餐承担;后付费组织的请求记在组织的后付费账户上,成员钱包与套餐不动,组织本月的在途与已结算消费不超过组织授信额度上限,上限每月 1 日(UTC)重置。两种方式下各层级的花费限额同时生效。需要 organization:write 权限(system scope),只有平台管理员能调用。
       operationId: updateAdminOrgBilling
       parameters:
         - description: 组织 ID
@@ -68129,19 +70000,14 @@ paths:
         - models
         - pricing
   /api/admin/pricing-catalog/sync:
-    post:
-      operationId: syncPricingCatalog
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PricingCatalogSyncRequest"
+    get:
+      operationId: getLatestPricingCatalogSyncRun
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PricingCatalogImportResultView"
+                $ref: "#/components/schemas/PricingCatalogSyncStateView"
           description: OK
         default:
           content:
@@ -68149,7 +70015,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/CchpErrorModel"
           description: Error
-      summary: 从云端 URL 拉取价格表并导入
+      summary: 最近一轮价格表同步(排程或手动)
+      tags:
+        - models
+        - pricing
+    post:
+      description: 写一条 trigger=manual 的价格表同步运行记录并投递后台执行,返回运行记录;同步正在进行时返回进行中的那一轮。结局与导入统计经 GET /api/admin/pricing-catalog/sync/runs/{runId} 查看。
+      operationId: syncPricingCatalog
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PricingCatalogSyncRequest"
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingCatalogSyncRunView"
+          description: Accepted
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      summary: 立即同步云端价格表(后台执行)
+      tags:
+        - models
+        - pricing
+  /api/admin/pricing-catalog/sync/runs/{runId}:
+    get:
+      operationId: getPricingCatalogSyncRun
+      parameters:
+        - description: 运行 ID(POST /api/admin/pricing-catalog/sync 返回的 id)
+          in: path
+          name: runId
+          required: true
+          schema:
+            description: 运行 ID(POST /api/admin/pricing-catalog/sync 返回的 id)
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingCatalogSyncRunView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      summary: 一轮价格表同步的状态、结局与导入统计
       tags:
         - models
         - pricing
@@ -70534,6 +72453,42 @@ paths:
       summary: 系统管理员查看用户的全部有效会话
       tags:
         - admin-users
+  /api/admin/web-vitals:
+    get:
+      operationId: getWebVitals
+      parameters:
+        - description: 时间窗(小时,1–168),从当前小时往前数
+          explode: false
+          in: query
+          name: hours
+          schema:
+            default: 24
+            description: 时间窗(小时,1–168),从当前小时往前数
+            format: int64
+            maximum: 168
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebVitalsView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 现场性能:各路由的 p75 与目标
+      tags:
+        - admin-profiling
   /api/admin/whoami:
     get:
       description: 返回当前已认证用户的身份脱敏视图(org / user / role 等);不回 token / secret / 内部 id。需要已认证(用户会话 cookie / CLI 会话 / 管理 API token 任一)。
@@ -70664,6 +72619,7 @@ paths:
         - auth
   /api/auth/csrf:
     get:
+      description: 请求带 Origin 时，它必须是控制台公开地址或请求 Host 上启用中的域名绑定(否则 403 origin_not_allowed)。
       operationId: getAuthCSRF
       parameters:
         - in: header
@@ -71854,6 +73810,280 @@ paths:
       summary: 使用邮箱验证码重置密码并吊销全部会话
       tags:
         - auth
+  /api/auth/session-transfer/approve:
+    post:
+      description: 核对与 inspect 相同，消费接力请求并签发一分钟内有效、只能使用一次的接力码;接力码与审计在同一事务提交后才返回。
+      operationId: approveSessionTransfer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionTransferRequestInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApproveSessionTransferOutputBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - csrfTokenHeader: []
+          userSessionCookie: []
+      summary: 确认登录接力并签发接力码
+      tags:
+        - auth
+  /api/auth/session-transfer/begin:
+    post:
+      description: 本域名与 source_origin 必须是绑定到同一组织的启用中域名，否则 422 session_transfer_invalid。响应写入只属于本域名的接力 cookie,接力请求值交给来源域名确认。
+      operationId: beginSessionTransfer
+      parameters:
+        - in: header
+          name: X-CCH-Challenge-Proof
+          schema:
+            maxLength: 2048
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            maxLength: 128
+            minLength: 1
+            pattern: ^[!-~]{1,128}$
+            type: string
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema:
+            minLength: 1
+            type: string
+        - in: header
+          name: Origin
+          required: true
+          schema:
+            format: uri
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BeginSessionTransferInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BeginSessionTransferOutputBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - anonymousCSRFCookie: []
+          csrfTokenHeader: []
+      summary: 在本域名发起登录接力
+      tags:
+        - auth
+  /api/auth/session-transfer/decline:
+    post:
+      description: 只能在接力请求指定的来源域名上调用;消费接力请求，不签发接力码。
+      operationId: declineSessionTransfer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionTransferRequestInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeclineSessionTransferOutputBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - csrfTokenHeader: []
+          userSessionCookie: []
+      summary: 取消登录接力
+      tags:
+        - auth
+  /api/auth/session-transfer/inspect:
+    post:
+      description: 只能在接力请求指定的来源域名上、以该组织有效成员的浏览器会话调用;否则 422 session_transfer_invalid。
+      operationId: inspectSessionTransfer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionTransferRequestInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InspectSessionTransferOutputBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - csrfTokenHeader: []
+          userSessionCookie: []
+      summary: 查看待确认的登录接力
+      tags:
+        - auth
+  /api/auth/session-transfer/origins:
+    get:
+      description: 本域名(按请求的 Host)是组织或团队的启用中绑定时，返回同一组织的其他绑定与全部平台地址(控制台公开地址与启用中的全局绑定);本域名是平台地址时为空(平台地址服务全部组织，不列出任何组织的域名)。
+      operationId: listSessionTransferOrigins
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTransferOriginsOutputBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security: []
+      summary: 列出本域名登录页可以接力登录的来源域名
+      tags:
+        - auth
+  /api/auth/session-transfer/redeem:
+    post:
+      description: 接力码只能使用一次：先作废，再核对本域名、接力 cookie 与浏览器指纹;任何一项不符或接力码过期、已使用时 422 session_transfer_invalid,本域名仍可正常登录。成功时按来源会话的认证方式、认证时间与第二因素签发本域名的会话，绝对期限不超过来源会话。
+      operationId: redeemSessionTransfer
+      parameters:
+        - in: header
+          name: X-CCH-Challenge-Proof
+          schema:
+            maxLength: 2048
+            type: string
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            maxLength: 128
+            minLength: 1
+            pattern: ^[!-~]{1,128}$
+            type: string
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema:
+            minLength: 1
+            type: string
+        - in: header
+          name: Origin
+          required: true
+          schema:
+            format: uri
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemSessionTransferInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemSessionTransferBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - anonymousCSRFCookie: []
+          csrfTokenHeader: []
+      summary: 兑换接力码并在本域名登录
+      tags:
+        - auth
+  /api/auth/session-transfer/targets:
+    get:
+      description: 本域名是组织或团队的启用中绑定时(会话用户须是该组织的有效成员),返回同一组织的其他绑定与全部平台地址;本域名是平台地址时，返回当前组织上下文的组织绑定。打开其中一个域名的 /login#transfer_from=<本域名> 即从那里发起接力。
+      operationId: listSessionTransferTargets
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTransferOriginsOutputBody"
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+      summary: 列出可以用当前登录打开的其他域名
+      tags:
+        - auth
   /api/auth/sign-in/email-code:
     post:
       operationId: signInWithEmailCode
@@ -72519,6 +74749,29 @@ paths:
       summary: 未登录模型性能历史(首字时间、输出速度与成功率;模型整体与按分组)
       tags:
         - branding-public
+  /api/rum:
+    post:
+      description: 浏览器在页面隐藏时 navigator.sendBeacon 的 LCP、INP、CLS、FCP、TTFB。匿名可达;控制台文档的上报要求已登录。
+      operationId: reportWebVitals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Beacon"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security: []
+      summary: 上报现场性能数据(web-vitals)
+      tags:
+        - web-vitals
   /api/security/cap/challenge:
     post:
       description: cap-widget / 前端 solver 用 challengeId 换取一次性 Cap 题目集 {token,c,s,d}(每 IP 每窗口限流)。公开端点。

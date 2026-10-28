@@ -2,6 +2,103 @@
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-10-28
+
+Built from the CCHP v1.0.13 control-plane spec with embedded Restish v2.3.0.
+
+### Added
+
+- `cchp docs` reads the CCHP documentation at cch-plus.com through its
+  [llms.txt](https://llmstxt.org) files, with no sign-in, so agents can answer
+  users and find how to configure something before running the matching
+  command ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)):
+  - `cchp docs index` lists the pages by section with their title, slug, URL
+    and description, from `/<lang>/llms.txt`;
+  - `cchp docs read <slug|url>` prints a page as Markdown, from
+    `/<lang>/docs/<slug>.md`; it takes a slug, a docs URL or a `.md` URL, and a
+    page missing in the chosen language fails with `not_found` and names the
+    languages that have it;
+  - `cchp docs search <words>` uses the site's full-text search and lists the
+    best matching sections with their page title, section, URL, slug, snippet
+    and score; `--limit` (1 to 50) and `--read-top N`, which adds the Markdown
+    of the N best pages;
+  - `cchp docs full` prints every page of a language from
+    `/<lang>/llms-full.txt`.
+  - Languages zh-CN, zh-TW, en, ja, ru and ko, picked by `--lang`, then
+    `CCHP_DOCS_LANG`, then the system locale (`LC_ALL`, `LC_MESSAGES`, `LANG`;
+    `zh_HK` and `zh_MO` read zh-TW), then en.
+  - `--docs-url` or `CCHP_DOCS_URL` points at a preview build; plain `http://`
+    only for this computer.
+  - Documents are cached in cchp's cache directory for at most 5 minutes, then
+    revalidated with `ETag` and `Last-Modified`; `--no-cache` fetches them
+    again. Reads are retried like other reads. The docs commands never send
+    credentials.
+  - `read` and `full` print raw Markdown unless `--json` is given; on a
+    terminal they render it. See [docs/docs-commands.md](docs/docs-commands.md).
+- Commands for the operations CCHP v1.0.13 added
+  ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)):
+  - outbound network proxies: `cchp admin network-proxy`, `set-network-proxy`
+    and `test-network-proxy` for the global proxy list;
+    `cchp providers network-proxies`, `set-network-proxies` and
+    `test-network-proxies` for one provider; `cchp keys network-proxies`,
+    `set-network-proxies` and `test-network-proxies` for one provider key;
+  - `cchp account bootstrap`, everything the console loads at start in one
+    call, and `cchp account sidebar`;
+  - `cchp usage batch`, several usage queries in one call;
+  - `cchp models price-table-sync` and `price-table-sync-run` for cloud price
+    table sync runs;
+  - `cchp org test-storage`, a step-by-step test of S3-compatible storage
+    settings that saves nothing;
+  - `cchp admin web-vitals`, real visitors' page load times per route.
+- Flags for the parameters CCHP v1.0.13 added: `--exclude-provider-key-ids` on
+  `cchp requests list`, `export` and `filter-options`, `--provider-key-ids` on
+  `cchp requests filter-options`, whose `--field` also takes `provider_key`
+  ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)).
+
+### Changed
+
+- `cchp models sync-price-table` starts the sync in the background and returns
+  its run, as CCHP v1.0.13 does; follow it with
+  `cchp models price-table-sync-run <runId>`
+  ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)).
+- Postpaid organizations have one monthly credit limit in CCHP v1.0.13:
+  `cchp billing org-billing`, `cchp admin org-billing`,
+  `cchp billing member-billing` and `cchp billing wallet` show it and this
+  month's use as `cap`, and `cchp admin set-org-billing` sets it. Permission
+  errors of `cchp billing org-billing` name `billing:read`, the permission the
+  server checks now ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)).
+
+### Removed
+
+- `cchp billing member-overdraft-limit`, `set-member-overdraft-limit`,
+  `team-overdraft-limit` and `set-team-overdraft-limit`, together with the
+  member and team overdraft limit operations CCHP v1.0.13 removed. Set the
+  organization's credit limit with `cchp admin set-org-billing`
+  ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)).
+
+### Fixed
+
+- Dry runs, `--debug` traces and error bodies mask more credentials in request
+  bodies: S3 secret access keys (`s3_secret_access_key`, `secretAccessKey`),
+  payment and Langfuse secret keys (`secretKey`, `langfuseSecretKey`), new and
+  temporary passwords, and invitation, session and management tokens
+  ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)).
+
+### Spec and coverage
+
+- The pinned spec is CCHP v1.0.13 (`00684cf0c0`): 702 operations, 587
+  available, 115 excluded with reasons, 0 unsupported (v1.0.12: 681, 575, 106,
+  0). See [docs/coverage.md](docs/coverage.md)
+  ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)).
+- Nine new operations are excluded with their reasons: the six steps of the
+  sign-in handover between an organization's domains, which need a signed-in
+  browser session or the browser's pre-sign-in cookie, and the list of domains
+  the sign-in page can take a sign-in over from; the browser's page
+  performance report; and the quota status of a read-only LLM token session,
+  which the server refuses to management tokens
+  (`cchp billing quota-status --scope-type user_key` reads the same figures)
+  ([#8](https://github.com/CCH-HQ/cchp-cli/pull/8)).
+
 ## [v0.1.3] - 2026-10-25
 
 Built from the CCHP v1.0.12 control-plane spec with embedded Restish v2.3.0.
@@ -272,7 +369,8 @@ Restish v2.3.0.
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
 
-[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.3...v0.2.0
 [v0.1.3]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.0...v0.1.1
