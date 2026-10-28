@@ -54,6 +54,31 @@ func TestJSONMasksSecretFieldsAtAnyDepth(t *testing.T) {
 	}
 }
 
+// Credential fields of CCHP request bodies: storage keys, payment channel keys,
+// new and temporary passwords, invitation, session and management tokens.
+func TestJSONMasksRequestCredentialFields(t *testing.T) {
+	in := `{"s3_access_key_id":"AKIA1","s3_secret_access_key":"sak1","secrets":{"secretAccessKey":"sak2","langfuseSecretKey":"lsk"},` +
+		`"config":{"secretKey":"sk2"},"new_password":"np","temporaryPassword":"tp","invitation_token":"it1","invitationToken":"it2",` +
+		`"new_api_management_token":"mt","token":"t","proxies":[{"password":"pp","hasPassword":true,"host":"h"}],` +
+		`"tokenEndpoint":"https://idp.example/token","tokenBasis":"input","apiKeyId":"k1","secret_prefix":"sp"}`
+	out, err := JSON([]byte(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(out)
+	for _, secret := range []string{`"sak1"`, `"sak2"`, `"lsk"`, `"sk2"`, `"np"`, `"tp"`, `"it1"`, `"it2"`, `"mt"`, `"t"`, `"pp"`} {
+		if strings.Contains(s, secret) {
+			t.Fatalf("secret %s survived: %s", secret, s)
+		}
+	}
+	for _, kept := range []string{`"s3_access_key_id":"AKIA1"`, `"hasPassword":true`, `"host":"h"`, `"tokenEndpoint":"https://idp.example/token"`,
+		`"tokenBasis":"input"`, `"apiKeyId":"k1"`, `"secret_prefix":"sp"`} {
+		if !strings.Contains(s, kept) {
+			t.Fatalf("%s should stay: %s", kept, s)
+		}
+	}
+}
+
 func TestJSONMasksExtraFieldsAndKeepsNumbersExact(t *testing.T) {
 	out, err := JSON([]byte(`{"webhook":"w","big":12345678901234567890,"n":null,"f":false}`), "webhook")
 	if err != nil {

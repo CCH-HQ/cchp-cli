@@ -25,7 +25,7 @@ var secretHeaders = map[string]bool{
 }
 
 // secretFieldRe matches JSON field names whose string values are credentials.
-var secretFieldRe = regexp.MustCompile(`(?i)^(plaintext|password|temporary_password|secret|secrets|client_?secret|.*_secret|.*Secret|api_?key|.*ApiKey|.*_api_key|private_?key|.*PrivateKey|.*_private_key|access_token|refresh_token|bot_token|api_token|admin_?token|webhook_secret|lmtPlaintext|recovery_codes|codes|proof|csrf_token)$`)
+var secretFieldRe = regexp.MustCompile(`(?i)^(plaintext|lmtPlaintext|secrets|.*secret|.*secret_?(access_?)?key|.*api_?key|.*private_?key|.*password|.*token|recovery_codes|codes|proof)$`)
 
 // String removes CCHP tokens and bearer credentials from free text.
 func String(s string) string {

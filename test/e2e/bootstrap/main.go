@@ -176,7 +176,8 @@ func (s *session) finishSetup() error {
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
-			err = s.call(http.MethodPost, "/api/setup/create-org", map[string]any{"orgName": "E2E Org", "teamName": "E2E Team"}, idempotency(), nil)
+			body := map[string]any{"orgName": "E2E Org", "teamName": "E2E Team", "billingMode": "prepaid", "monthlyOverdraftLimitUnits": nil}
+			err = s.call(http.MethodPost, "/api/setup/create-org", body, idempotency(), nil)
 			if err == nil {
 				orgRequested = true
 				err = s.refreshSessionCSRF()

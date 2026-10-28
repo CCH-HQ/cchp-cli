@@ -100,6 +100,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeModels')]", update: {x-cli-description: "Leave out these models."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeProtocols')]", update: {x-cli-description: "Leave out these inbound API formats."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeProviderIds')]", update: {x-cli-description: "Leave out requests that ended on these providers."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'excludeProviderKeyIds')]", update: {x-cli-description: "Leave out requests served by these provider keys."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeStatusCodes')]", update: {x-cli-description: "Leave out these status codes."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeTeamId')]", update: {x-cli-description: "Leave out members of this team, for example to find people to add to it."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeUserIds')]", update: {x-cli-description: "Leave out requests from these users."}}
@@ -252,6 +253,9 @@ actions:
   - {target: "$.paths['/api/account/layouts/{page}'].put", update: {x-cchp-group: account, x-cli-name: save-layout, x-cli-description: "Save your widget layout for a console page."}}
   - {target: "$.paths['/api/account/layouts/{page}'].*.parameters[?(@.name == 'page')]", update: {x-cli-description: "Page key, for example member-home or admin-overview."}}
   - {target: "$.paths['/api/account/me'].get", update: {x-cchp-group: account, x-cli-name: me, x-cli-description: "Show your identity and the organizations you belong to."}}
+  - {target: "$.paths['/api/account/bootstrap'].get", update: {x-cchp-group: account, x-cli-name: bootstrap, x-cli-description: "Show what the console loads at start in one call: identity, permissions, feature flags, preferences, sidebar, notifications and announcements."}}
+  - {target: "$.paths['/api/account/bootstrap'].get.parameters[?(@.name == 'locale')]", update: {x-cli-description: "Language to translate announcements into, for example en-US."}}
+  - {target: "$.paths['/api/account/console/sidebar'].get", update: {x-cchp-group: account, x-cli-name: sidebar, x-cli-description: "Show the console sidebar layout in effect for your organization."}}
   - {target: "$.paths['/api/account/operations/{id}'].get", update: {x-cchp-group: account, x-cli-name: operation, x-cli-description: "Check the status of an asynchronous operation."}}
   - {target: "$.paths['/api/account/preferences'].get", update: {x-cchp-group: account, x-cli-name: preferences, x-cli-description: "Show your preferences."}}
   - {target: "$.paths['/api/account/preferences'].patch", update: {x-cchp-group: account, x-cli-name: update-preferences, x-cli-description: "Change your preferences."}}
@@ -364,8 +368,8 @@ actions:
   - {target: "$.paths['/api/admin/orgs/{orgId}/entitlements'].get", update: {x-cchp-group: admin, x-cli-name: entitlements, x-cli-description: "List an organization's entitlements."}}
   - {target: "$.paths['/api/admin/orgs/{orgId}/entitlements/{featureKey}'].delete", update: {x-cchp-group: admin, x-cli-name: clear-entitlement, x-cli-description: "Clear one of an organization's entitlements."}}
   - {target: "$.paths['/api/admin/orgs/{orgId}/entitlements/{featureKey}'].put", update: {x-cchp-group: admin, x-cli-name: set-entitlement, x-cli-description: "Set one of an organization's entitlements."}}
-  - {target: "$.paths['/api/admin/orgs/{orgId}/billing'].get", update: {x-cchp-group: admin, x-cli-name: org-billing, x-cli-description: "Show an organization's billing mode and its monthly overdraft limit and use."}}
-  - {target: "$.paths['/api/admin/orgs/{orgId}/billing'].put", update: {x-cchp-group: admin, x-cli-name: set-org-billing, x-cli-description: "Set an organization's billing mode (prepaid or postpaid) and monthly overdraft limit."}}
+  - {target: "$.paths['/api/admin/orgs/{orgId}/billing'].get", update: {x-cchp-group: admin, x-cli-name: org-billing, x-cli-description: "Show an organization's billing mode and this month's use of its monthly credit limit."}}
+  - {target: "$.paths['/api/admin/orgs/{orgId}/billing'].put", update: {x-cchp-group: admin, x-cli-name: set-org-billing, x-cli-description: "Set an organization's billing mode (prepaid or postpaid) and its monthly credit limit."}}
   - {target: "$.paths['/api/admin/member-tags'].get", update: {x-cchp-group: admin, x-cli-name: member-tags, x-cli-description: "List the tags used on members across the platform."}}
   - {target: "$.paths['/api/admin/teams'].get", update: {x-cchp-group: admin, x-cli-name: teams, x-cli-description: "List every team on the platform with its organization."}}
   - {target: "$.paths['/api/admin/error-rules'].get", update: {x-cchp-group: safety, x-cli-name: error-rules, x-cli-description: "List the error rules you can manage."}}
@@ -425,6 +429,11 @@ actions:
   - {target: "$.paths['/api/admin/profiling/nodes'].get", update: {x-cchp-group: admin, x-cli-name: profiling-nodes, x-cli-description: "List running processes you can profile."}}
   - {target: "$.paths['/api/admin/profiling/nodes/{nodeId}/overview'].get", update: {x-cchp-group: admin, x-cli-name: process-overview, x-cli-description: "Show a process's live runtime overview."}}
   - {target: "$.paths['/api/admin/profiling/status'].get", update: {x-cchp-group: admin, x-cli-name: profiling-status, x-cli-description: "Show whether profiling is on, its limits and how long captures are kept."}}
+  - {target: "$.paths['/api/admin/web-vitals'].get", update: {x-cchp-group: admin, x-cli-name: web-vitals, x-cli-description: "Show how fast the website and console load for real visitors: the p75 of each page against its target."}}
+  - {target: "$.paths['/api/admin/web-vitals'].get.parameters[?(@.name == 'hours')]", update: {x-cli-description: "Hours to look back from the current hour (default 24, at most 168)."}}
+  - {target: "$.paths['/api/admin/network-proxy'].get", update: {x-cchp-group: admin, x-cli-name: network-proxy, x-cli-description: "Show the global outbound proxies and whether provider proxies connect through them; passwords are never shown."}}
+  - {target: "$.paths['/api/admin/network-proxy'].put", update: {x-cchp-group: admin, x-cli-name: set-network-proxy, x-cli-description: "Replace the global outbound proxies that every gateway and console connection uses, unless a provider or key has its own."}}
+  - {target: "$.paths['/api/admin/network-proxy/test'].post", update: {x-cchp-group: admin, x-cli-name: test-network-proxy, x-cli-description: "Send one test request through each proxy you give and report which reached the target, how fast, or where it failed."}}
   - {target: "$.paths['/api/admin/registration/default-org'].get", update: {x-cchp-group: admin, x-cli-name: default-org, x-cli-description: "Show the organization new users join by default."}}
   - {target: "$.paths['/api/admin/registration/default-org'].put", update: {x-cchp-group: admin, x-cli-name: set-default-org, x-cli-description: "Set or clear the organization new users join by default."}}
   - {target: "$.paths['/api/admin/system/about'].get", update: {x-cchp-group: admin, x-cli-name: about, x-cli-description: "Show the server's version, build, commit and release channel."}}
@@ -520,6 +529,14 @@ actions:
   - {target: "$.paths['/api/auth/sso/{connectorId}/metadata'].get", update: {x-cchp-group: sign-in, x-cli-description: "Download SAML service provider metadata.", x-cli-ignore: true, x-cchp-exclude-reason: "Read by the identity provider during single sign-on setup, not by people or tools."}}
   - {target: "$.paths['/api/auth/sso/{connectorId}/start'].post", update: {x-cchp-group: sign-in, x-cli-description: "Start a single sign-on."}}
   - {target: "$.paths['/api/auth/sso/finish-email'].post", update: {x-cchp-group: sign-in, x-cli-description: "Finish email verification after single sign-on."}}
+  - {target: "$.paths['/api/auth/session-transfer/origins'].get", update: {x-cchp-group: sign-in, x-cli-description: "List the domains this domain's sign-in page can take over a sign-in from.", x-cli-ignore: true, x-cchp-exclude-reason: "Part of the browser sign-in handover between an organization's domains; only the sign-in page uses it."}}
+  - {target: "$.paths['/api/auth/session-transfer/targets'].get", update: {x-cchp-group: sign-in, x-cli-description: "List the other domains you can open with your current sign-in."}}
+  - {target: "$.paths['/api/auth/session-transfer/begin'].post", update: {x-cchp-group: sign-in, x-cli-description: "Start handing a sign-in over from another domain of the organization to this one."}}
+  - {target: "$.paths['/api/auth/session-transfer/inspect'].post", update: {x-cchp-group: sign-in, x-cli-description: "Show a sign-in handover waiting for your confirmation."}}
+  - {target: "$.paths['/api/auth/session-transfer/approve'].post", update: {x-cchp-group: sign-in, x-cli-description: "Confirm a sign-in handover and issue its one-time code."}}
+  - {target: "$.paths['/api/auth/session-transfer/decline'].post", update: {x-cchp-group: sign-in, x-cli-description: "Cancel a sign-in handover."}}
+  - {target: "$.paths['/api/auth/session-transfer/redeem'].post", update: {x-cchp-group: sign-in, x-cli-description: "Redeem a sign-in handover code and sign in on this domain."}}
+  - {target: "$.paths['/api/rum'].post", update: {x-cchp-group: sign-in, x-cli-description: "Report a page's load performance measured in the browser.", x-cli-ignore: true, x-cchp-exclude-reason: "Browsers send their page performance measurements here; it is not for people or tools."}}
   - {target: "$.paths['/api/account/device/approve'].post", update: {x-cchp-group: sign-in, x-cli-description: "Approve or deny a CLI sign-in request."}}
   - {target: "$.paths['/api/account/device/inspect'].post", update: {x-cchp-group: sign-in, x-cli-description: "Show a pending CLI sign-in request."}}
   - {target: "$.paths['/api/auth/device/code'].post", update: {x-cchp-group: sign-in, x-cli-description: "Start a CLI device sign-in.", x-cli-ignore: true, x-cchp-exclude-reason: "Device sign-in creates CLI user sessions; cchp signs in with a management token."}}
@@ -552,11 +569,7 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/billing/reprice/{jobId}/execute'].post", update: {x-cchp-group: billing, x-cli-name: run-reprice, x-cli-description: "Start running a repricing job."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/billing/reprice/{jobId}/pause'].post", update: {x-cchp-group: billing, x-cli-name: pause-reprice, x-cli-description: "Pause a repricing job."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/billing/reprice/{jobId}/resume'].post", update: {x-cchp-group: billing, x-cli-name: resume-reprice, x-cli-description: "Resume a paused repricing job."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/billing'].get", update: {x-cchp-group: billing, x-cli-name: org-billing, x-cli-description: "Show how the organization is billed and its monthly overdraft limit and use."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/overdraft-limit'].get", update: {x-cchp-group: billing, x-cli-name: member-overdraft-limit, x-cli-description: "Show a member's monthly overdraft limit and this month's use."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/overdraft-limit'].put", update: {x-cchp-group: billing, x-cli-name: set-member-overdraft-limit, x-cli-description: "Set or clear a member's monthly overdraft limit (postpaid organizations only)."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/teams/{teamId}/overdraft-limit'].get", update: {x-cchp-group: billing, x-cli-name: team-overdraft-limit, x-cli-description: "Show a team's monthly overdraft limit and this month's use."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/teams/{teamId}/overdraft-limit'].put", update: {x-cchp-group: billing, x-cli-name: set-team-overdraft-limit, x-cli-description: "Set or clear a team's monthly overdraft limit (postpaid organizations only)."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/billing'].get", update: {x-cchp-group: billing, x-cli-name: org-billing, x-cli-description: "Show how the organization is billed and this month's use of its monthly credit limit."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/grant-adjustments'].get", update: {x-cchp-group: billing, x-cli-name: grant-adjustments, x-cli-description: "List adjustments of promotional grants, newest first, with their progress."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/grant-adjustments'].post", update: {x-cchp-group: billing, x-cli-name: create-grant-adjustment, x-cli-description: "Revoke and claw back, or compensate, promotional grants of members."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/grant-adjustments/grants'].get", update: {x-cchp-group: billing, x-cli-name: member-grants, x-cli-description: "List the promotional grants members received: codes, plans, rewards, bonuses and compensation."}}
@@ -574,7 +587,7 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/grant-adjustments/grants'].get.parameters[?(@.name == 'userIds')]", update: {x-cli-description: "Only grants of these members."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/grant-adjustments/grants'].get.parameters[?(@.name == 'status')]", update: {x-cli-description: "Only grants in this state; all when left out."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/grant-adjustments/subjects'].get.parameters[?(@.name == 'kind')]", update: {x-cli-description: "member for the organization's active members, team for its teams."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing'].get", update: {x-cchp-group: billing, x-cli-name: member-billing, x-cli-description: "Show a member's wallet, credit, billing mode and overdraft limit, and whether you may manage their billing."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing'].get", update: {x-cchp-group: billing, x-cli-name: member-billing, x-cli-description: "Show a member's wallet and credit, the organization's billing mode and credit limit, and whether you may manage their billing."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/actions'].get", update: {x-cchp-group: billing, x-cli-name: member-billing-actions, x-cli-description: "List the billing actions taken on a member: plan revocations, redemptions, balance and quota adjustments."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/balance-adjustments'].post", update: {x-cchp-group: billing, x-cli-name: adjust-member-balance, x-cli-description: "Add to or take from a member's wallet balance, with a reason."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/balance-adjustments/preview'].post", update: {x-cchp-group: billing, x-cli-name: preview-member-balance-adjustment, x-cli-description: "Preview a member's balance before and after an adjustment and the lowest balance allowed; nothing is changed."}}
@@ -620,7 +633,10 @@ actions:
   - {target: "$.paths['/api/admin/pricing-catalog'].get", update: {x-cchp-group: models, x-cli-name: price-table-status, x-cli-description: "Show the cloud price table sync status."}}
   - {target: "$.paths['/api/admin/pricing-catalog/import'].post", update: {x-cchp-group: models, x-cli-name: import-price-table, x-cli-description: "Import a cloud price table document you provide."}}
   - {target: "$.paths['/api/admin/pricing-catalog/models/{modelId}/pricing-source'].put", update: {x-cchp-group: models, x-cli-name: set-price-source, x-cli-description: "Choose which price source a model uses."}}
-  - {target: "$.paths['/api/admin/pricing-catalog/sync'].post", update: {x-cchp-group: models, x-cli-name: sync-price-table, x-cli-description: "Download and import the cloud price table now."}}
+  - {target: "$.paths['/api/admin/pricing-catalog/sync'].get", update: {x-cchp-group: models, x-cli-name: price-table-sync, x-cli-description: "Show the latest cloud price table sync run, scheduled or manual."}}
+  - {target: "$.paths['/api/admin/pricing-catalog/sync'].post", update: {x-cchp-group: models, x-cli-name: sync-price-table, x-cli-description: "Start a cloud price table sync in the background and return its run; while one runs, return that one."}}
+  - {target: "$.paths['/api/admin/pricing-catalog/sync/runs/{runId}'].get", update: {x-cchp-group: models, x-cli-name: price-table-sync-run, x-cli-description: "Show a cloud price table sync run: its status, outcome and import counts."}}
+  - {target: "$.paths['/api/admin/pricing-catalog/sync/runs/{runId}'].get.parameters[?(@.name == 'runId')]", update: {x-cli-description: "Sync run ID, as cchp models sync-price-table returns it."}}
 
   # ── CC Hub import ──
   - {target: "$.paths['/api/admin/cchub-import'].get", update: {x-cchp-group: import, x-cli-name: list, x-cli-description: "List your recent CC Hub imports."}}
@@ -802,6 +818,7 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/mail/readiness'].get", update: {x-cchp-group: org, x-cli-name: mail-readiness, x-cli-description: "Check whether the organization's emails can be sent now and what blocks each one."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/storage-config'].get", update: {x-cchp-group: org, x-cli-name: storage, x-cli-description: "Show the organization's storage preferences."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/storage-config'].put", update: {x-cchp-group: org, x-cli-name: set-storage, x-cli-description: "Change the organization's storage preferences."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/storage-config/test'].post", update: {x-cchp-group: org, x-cli-name: test-storage, x-cli-description: "Test S3-compatible storage settings step by step without saving them; test objects are deleted afterwards."}}
 
   # ── Payments ──
   - {target: "$.paths['/api/account/wallet/payment/channels'].get", update: {x-cchp-group: billing, x-cli-name: payment-methods, x-cli-description: "List the payment methods your wallet can use."}}
@@ -892,6 +909,9 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}'].delete", update: {x-cchp-group: providers, x-cli-name: delete, x-cli-description: "Delete a provider."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}'].get", update: {x-cchp-group: providers, x-cli-name: get, x-cli-description: "Show one provider."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}'].patch", update: {x-cchp-group: providers, x-cli-name: update, x-cli-description: "Change a provider."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/network-proxies'].get", update: {x-cchp-group: providers, x-cli-name: network-proxies, x-cli-description: "Show a provider's own outbound proxies; none means it follows the global proxy. Passwords are never shown."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/network-proxies'].put", update: {x-cchp-group: providers, x-cli-name: set-network-proxies, x-cli-description: "Replace a provider's outbound proxies, used by all its requests except keys with their own; an empty list follows the global proxy."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/network-proxies/test'].post", update: {x-cchp-group: providers, x-cli-name: test-network-proxies, x-cli-description: "Send one test request through each proxy you give, by default to the provider's first enabled endpoint, and report the results."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon'].get", update: {x-cchp-group: providers, x-cli-name: favicon, x-cli-description: "Download a provider's icon."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon/refresh'].post", update: {x-cchp-group: providers, x-cli-name: refresh-favicon, x-cli-description: "Fetch a provider's icon again."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon/status'].get", update: {x-cchp-group: providers, x-cli-name: favicon-status, x-cli-description: "Show whether a provider's icon was fetched."}}
@@ -966,6 +986,9 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/purge'].post", update: {x-cchp-group: keys, x-cli-name: purge, x-cli-description: "Permanently delete a revoked key."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/reveal'].post", update: {x-cchp-group: keys, x-cli-description: "Show a provider key's secret once."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/rotate'].post", update: {x-cchp-group: keys, x-cli-name: rotate, x-cli-description: "Replace a key with a new secret."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/network-proxies'].get", update: {x-cchp-group: keys, x-cli-name: network-proxies, x-cli-description: "Show a key's own outbound proxies; none means it follows its provider's or the global proxy. Passwords are never shown."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/network-proxies'].put", update: {x-cchp-group: keys, x-cli-name: set-network-proxies, x-cli-description: "Replace a key's outbound proxies, used before its provider's and the global proxy; an empty list follows them."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/network-proxies/test'].post", update: {x-cchp-group: keys, x-cli-name: test-network-proxies, x-cli-description: "Send one test request through each proxy you give, by default to the provider's first enabled endpoint, and report the results."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/sip-routes'].get", update: {x-cchp-group: keys, x-cli-name: sip-routes, x-cli-description: "List a key's SIP phone number routes."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/sip-routes'].post", update: {x-cchp-group: keys, x-cli-name: create-sip-route, x-cli-description: "Add a SIP phone number route; a generated signing secret is shown only once."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/sip-routes/{routeId}'].delete", update: {x-cchp-group: keys, x-cli-name: delete-sip-route, x-cli-description: "Delete a SIP phone number route."}}
@@ -989,6 +1012,7 @@ actions:
   - {target: "$.paths['/api/account/quota/status'].get.parameters[?(@.name == 'orgId')]", update: {x-cli-description: "Organization to read; leave out for your own. Another one must be a descendant organization you manage."}}
   - {target: "$.paths['/api/account/quota/status'].get.parameters[?(@.name == 'scopeType')]", update: {x-cli-description: "Scope type; organization is the organization's own quota pool."}}
   - {target: "$.paths['/api/account/quota/status'].get.parameters[?(@.name == 'scopeId')]", update: {x-cli-description: "Scope ID; the organization ID when the scope type is organization."}}
+  - {target: "$.paths['/api/account/quota/status/llm-key'].get", update: {x-cchp-group: billing, x-cli-name: llm-token-quota-status, x-cli-description: "Show each limited quota of the LLM token behind a read-only LLM token session.", x-cli-ignore: true, x-cchp-exclude-reason: "The server answers only a read-only LLM token session here and rejects management tokens; cchp billing quota-status --scope-type user_key reads the same figures."}}
 
   # ── Human verification administration ──
   - {target: "$.paths['/api/admin/security/challenges/events'].get", update: {x-cchp-group: admin, x-cli-name: verification-events, x-cli-description: "List human verification events."}}
@@ -1061,6 +1085,7 @@ actions:
   - {target: "$.paths['/api/account/usage/timeseries'].get", update: {x-cchp-group: usage, x-cli-name: trend, x-cli-description: "Show usage over time in buckets."}}
   - {target: "$.paths['/api/account/usage/timeseries'].get.parameters[?(@.name == 'granularity')]", update: {x-cli-description: "Time bucket size; your usage view's default when left out."}}
   - {target: "$.paths['/api/account/usage/view-policy'].get", update: {x-cchp-group: usage, x-cli-name: view-settings, x-cli-description: "Show the time bucket size and split your usage trend charts start from."}}
+  - {target: "$.paths['/api/account/usage/batch'].post", update: {x-cchp-group: usage, x-cli-name: batch, x-cli-description: "Run several usage summary, trend, ranking and view settings queries in one call; each gets its own status and result."}}
   - {target: "$.paths['/api/account/usage/gauge'].get", update: {x-cchp-group: usage, x-cli-name: gauge, x-cli-description: "Show the current request rate."}}
   - {target: "$.paths['/api/account/usage/rank'].get", update: {x-cchp-group: usage, x-cli-name: live-rank, x-cli-description: "Show the live ranking for the current period."}}
   - {target: "$.paths['/api/account/usage/realtime'].get", update: {x-cchp-group: usage, x-cli-name: watch, x-cli-description: "Stream usage, permission and quota events."}}
