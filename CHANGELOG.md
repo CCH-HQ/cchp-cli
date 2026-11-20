@@ -2,6 +2,98 @@
 
 ## [Unreleased]
 
+## [v0.1.4] - 2026-11-20
+
+Built from the CCHP v1.0.15 control-plane spec with embedded Restish v2.3.0.
+
+### Added
+
+- Commands for the operations CCHP v1.0.13 through v1.0.15 added
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)):
+  - client definitions and client access control in `cchp safety`:
+    `client-definitions`, `create-client-definition`,
+    `update-client-definition`, `delete-client-definition`,
+    `reorder-client-definitions`, `identify-client`, `fetch-client-icon`,
+    `restore-client-preset`, `restore-missing-client-presets`, `client-access`,
+    `save-client-access`, `set-client-access-rule`, `evaluate-client-access`,
+    `client-access-revisions`, `client-access-revision`,
+    `restore-client-access-revision`, `llm-token-client-access` and
+    `save-llm-token-client-access`, plus `cchp account client-definitions` and
+    `cchp safety preview-privacy-import`;
+  - outbound network proxies: `cchp admin network-proxy`, `set-network-proxy`
+    and `test-network-proxy`; `cchp providers network-proxies`,
+    `set-network-proxies` and `test-network-proxies`; and
+    `cchp keys network-proxies`, `set-network-proxies` and
+    `test-network-proxies`;
+  - GeoIP and client IP inspection: `cchp admin geoip`, `update-geoip`,
+    `geoip-update-run`, `lookup-geoip`, `geoip-lookup`, `inspect-client-ip` and
+    `cloudflare-proxy-ranges`;
+  - diagnostics and profiling: `cchp admin web-vitals` and
+    `cchp admin download-pgo`;
+  - account, models and requests: `cchp account bootstrap`, `sidebar` and
+    `login-history`, `cchp usage batch`, `cchp models catalog-model`,
+    `price-table-sync` and `price-table-sync-run`, `cchp public model`, and
+    `cchp requests archive-langfuse`;
+  - organizations, providers and operations: `cchp org test-storage`,
+    `request-content-access`, `set-request-content-access`, `member-team-orgs`
+    and `move-member`, `cchp providers detect-endpoint-types`, and
+    `cchp operations condition-entities` and `sync-campaign-notifications`.
+- Flags for parameters CCHP v1.0.13 through v1.0.15 added to existing
+  operations: `--exclude-provider-key-ids`, `--client-id` and
+  `--include-unmatched-get` on `cchp requests list` and `export`,
+  `--exclude-provider-key-ids` and `--provider-key-ids` on
+  `cchp requests filter-options`, `--variant` on `cchp requests archive`,
+  `context`, `download-part` and `inspect-bundle`, `--scope` on
+  `cchp safety error-rules`, `create-error-rule`, `update-error-rule`,
+  `delete-error-rule` and `test-error-rule`, `--trigger` on
+  `cchp admin profiling-captures`, and `--if-none-match` on
+  `cchp models catalog` and `list`
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+- `cchp account login-history` and `cchp operations condition-entities` report
+  pagination and follow `--page-limit` and `--max-items`
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+
+### Changed
+
+- Redaction masks more request-body credentials in dry runs, traces and error
+  bodies, including S3 secret access keys, payment and Langfuse secret keys,
+  new and temporary passwords, and invitation, session and management tokens
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+- `cchp billing org-billing` now checks `billing:read` and reflects the
+  organization-wide monthly credit limit
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+
+### Removed
+
+- `cchp billing member-overdraft-limit`, `set-member-overdraft-limit`,
+  `team-overdraft-limit` and `set-team-overdraft-limit`, removed in CCHP
+  v1.0.13 in favor of organization-level credit limits via
+  `cchp admin set-org-billing`
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+- `cchp account client-rules`, `cchp safety client-rules` and
+  `cchp safety replace-client-rules`, replaced by client definitions and client
+  access rule sets (`cchp safety client-definitions` and
+  `cchp safety client-access`)
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+- `cchp safety privacy-ruleset`, `set-privacy-auto-update` and
+  `update-privacy-ruleset`, removed when CCHP moved to bundled privacy filter
+  rules ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+
+### Spec and coverage
+
+- The pinned spec is CCHP v1.0.15 (`96ed124df5`): 739 operations, 620
+  available, 119 excluded with reasons, 0 unsupported. See
+  [docs/coverage.md](docs/coverage.md)
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+- Thirteen new browser-only or session-only operations are excluded with their
+  reasons: cross-domain sign-in handovers (`begin`, `inspect`, `approve`,
+  `decline`, `redeem`, `targets`, `origins`), browser Web Vitals reporting,
+  browser HTTP cache clearing, installation client-IP setup (`getSetupClientIP`,
+  `saveSetupClientIP`), read-only LLM token quota status (use
+  `cchp billing quota-status --scope-type user_key`) and admin user login
+  history (`listAdminUserLoginHistory`, browser session only)
+  ([#9](https://github.com/CCH-HQ/cchp-cli/pull/9)).
+
 ## [v0.1.3] - 2026-10-25
 
 Built from the CCHP v1.0.12 control-plane spec with embedded Restish v2.3.0.
@@ -272,7 +364,8 @@ Restish v2.3.0.
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
 
-[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.4...HEAD
+[v0.1.4]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.0...v0.1.1
