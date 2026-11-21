@@ -51,9 +51,9 @@ unless `--json` is given, so it can be redirected into a file. On a terminal,
 | `error` | `ok` is false | see below |
 | `warnings` | sometimes | notes that did not fail the run |
 
-Discovery and support commands (`commands`, `schema`, `version`, `guide`,
-`status`, `login`, `logout`, `skill install`) use the same object with their
-content in `data`. So do the docs commands (`docs index`, `docs read`,
+Discovery and support commands (`commands`, `schema`, `version`, `update`,
+`guide`, `status`, `login`, `logout`, `skill install`) use the same object with
+their content in `data`. So do the docs commands (`docs index`, `docs read`,
 `docs search`, `docs full`); [docs-commands.md](docs-commands.md#output) lists
 their `data` fields, and they report the docs site's answers with the kinds
 below.

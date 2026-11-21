@@ -25,6 +25,7 @@ import (
 	"github.com/CCH-HQ/cchp-cli/internal/contract"
 	"github.com/CCH-HQ/cchp-cli/internal/redact"
 	"github.com/CCH-HQ/cchp-cli/internal/runner"
+	"github.com/CCH-HQ/cchp-cli/internal/selfupdate"
 	"github.com/CCH-HQ/cchp-cli/internal/ui"
 )
 
@@ -71,11 +72,20 @@ type app struct {
 	confirm    string
 	timeout    time.Duration
 	debug      bool
+
+	configureUpdater func(*selfupdate.Config)
 }
 
 // Run executes cchp with args (without the program name) and returns the exit code.
 func Run(args []string, stdio IO, build BuildInfo) int {
+	return runWith(args, stdio, build, nil)
+}
+
+func runWith(args []string, stdio IO, build BuildInfo, configure func(*app)) int {
 	a := &app{io: stdio, build: build}
+	if configure != nil {
+		configure(a)
+	}
 	a.agent = agentMode(args, stdio)
 	dirs, err := auth.DefaultDirs()
 	if err != nil {
