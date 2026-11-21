@@ -86,6 +86,21 @@ and `cchp commands --search "<words>"` finds a command by what it does.
 
 ![Finding commands](media/discover.gif)
 
+## The CCHP docs
+
+`cchp docs` reads the CCHP documentation from cch-plus.com in your language,
+without signing in:
+
+```sh
+cchp docs search "network proxy"          # the best matching pages
+cchp docs read providers/network-proxies  # one page, rendered in the terminal
+cchp docs index                           # every page by section
+cchp docs full > cchp-docs.md             # every page in one Markdown file
+```
+
+cchp follows your system language; `--lang zh-CN` (or zh-TW, en, ja, ru, ko)
+picks another. More: [docs-commands.md](docs-commands.md).
+
 ## Changes and confirmations
 
 Commands that add or change things run straight away. Commands that delete or

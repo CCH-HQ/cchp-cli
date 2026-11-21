@@ -71,7 +71,7 @@ It prints the cchp version and the CCHP spec it was built from.
 | Settings and the signed-in server | `~/.config/cchp/config.json` (Linux), `~/Library/Application Support/cchp` (macOS), `%AppData%\cchp` (Windows) |
 | The token | the system keychain (macOS Keychain, Windows Credential Manager, Secret Service on Linux) |
 | The token, when there is no keychain | `credentials.json` next to `config.json`, readable only by you |
-| Cache | the user cache directory, `cchp/` |
+| Cache | the user cache directory, `cchp/`: the engine's spec and, in `docs/`, docs pages read in the last 5 minutes |
 
 `CCHP_CONFIG_DIR` and `CCHP_CACHE_DIR` move these. `CCHP_CREDENTIAL_STORE=file`
 or `keychain` picks the token store explicitly.

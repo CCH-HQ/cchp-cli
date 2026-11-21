@@ -98,6 +98,23 @@ every kind and exit code. Two need special care:
 `cchp import run` previews, waits, confirms and reports a CC Hub import. See
 `cchp import run --help` and the skill's workflows reference.
 
+## Look things up in the CCHP docs
+
+`cchp docs` reads the CCHP documentation (cch-plus.com) without a sign-in. Use
+it to answer a user's question, or to learn how a feature works before you
+change it with the matching operation:
+
+```sh
+cchp docs search "network proxy" --lang en --read-top 1 --json   # best pages with their Markdown
+cchp docs search 网络代理 --lang zh-CN --read-top 1 --json
+cchp docs read providers/network-proxies --lang en --json        # one page by its slug
+cchp docs index --lang ja --json                                 # every page by section
+```
+
+Answer from `data.results[].markdown` (or `data.markdown`) and cite the page's
+`url`. The language is `--lang`, then `CCHP_DOCS_LANG`, then the system locale,
+then `en`. Details: [docs-commands.md](docs-commands.md).
+
 ## Skill and AGENTS.md
 
 ```sh

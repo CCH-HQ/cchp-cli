@@ -42,5 +42,19 @@ mode 600). A saved `cchp login` also works. Never put a token in arguments.
 Pass JSON with `--body-file <file>` or `--body-file -` for standard input.
 cchp checks it against the operation's schema first and sends it byte for byte.
 
+## The CCHP docs
+
+`cchp docs` reads the CCHP documentation without a sign-in, to answer a user's
+question or to learn how a feature works before changing it:
+
+```
+cchp docs search "network proxy" --read-top 1 --json   # best pages and their Markdown
+cchp docs read providers/network-proxies --json        # one page by its slug
+cchp docs index --json                                 # every page by section
+```
+
+Pick the language with `--lang` (zh-CN, zh-TW, en, ja, ru, ko) or
+`CCHP_DOCS_LANG`; otherwise cchp follows the system locale, then English.
+
 Full reference: the cchp skill (`cchp skill show`) and the docs in the
 repository.
