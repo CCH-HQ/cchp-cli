@@ -14,4 +14,7 @@ Use the `cchp` CLI for anything about the CCHP gateway server.
 - Lists return one page; continue with `pagination.next_cursor`.
 - If the result says `browser_session_required` or
   `human_verification_required`, ask the user to do it in the console.
+- For how CCHP works, search its docs with no sign-in:
+  `cchp docs search "<words>" --read-top 1 --json`, in the user's language with
+  `--lang zh-CN|zh-TW|en|ja|ru|ko`.
 - More: `cchp skill show` and `cchp guide agents`.

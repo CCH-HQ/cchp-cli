@@ -1,18 +1,35 @@
 ---
 name: cchp
-description: Manage a CCHP (Claude Code Hub Plus) server with the cchp CLI - read usage, request logs, providers, provider keys, LLM tokens, members and settings, and make changes safely. Use when a task involves a CCHP gateway or its control plane, or when the user mentions cchp, CCHP or Claude Code Hub Plus.
+description: Manage a CCHP (Claude Code Hub Plus) server with the cchp CLI - read usage, request logs, providers, provider keys, LLM tokens, members and settings, make changes safely, and look up how CCHP works in its documentation. Use when a task involves a CCHP gateway or its control plane, when the user asks how to install, configure or use CCHP, or when the user mentions cchp, CCHP or Claude Code Hub Plus.
 ---
 
 # cchp
 
 `cchp` calls every CCHP control-plane operation that accepts a management token.
-It knows all operations offline, so look them up before calling.
+It knows all operations offline, so look them up before calling. It also reads
+the CCHP documentation, with no sign-in.
 
 ## When to use it
 
 - Questions about a CCHP server: usage, costs, request logs, providers, keys,
   LLM tokens, members, quotas, settings.
 - Changes to that server, when the user asked for them.
+- Questions about CCHP itself: how to install it, what a feature does, how to
+  configure it. Search the docs first (below).
+
+## Look it up in the docs
+
+```
+cchp docs search "<words>" --read-top 1 --json   # best pages, with their Markdown
+cchp docs read <slug> --json                     # one page, by the slug a result gives
+cchp docs index --json                           # every page by section
+```
+
+Answer from the Markdown and cite the page's `url`. The language is `--lang`
+(zh-CN, zh-TW, en, ja, ru, ko), then `CCHP_DOCS_LANG`, then the system locale;
+answer in the user's language and search in it. Before changing a setting the
+docs describe, find its operation with `cchp commands --search`. Recipes:
+[references/workflows.md](references/workflows.md).
 
 ## Before you start
 

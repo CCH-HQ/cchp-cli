@@ -3,7 +3,7 @@ GOLANGCI_LINT ?= golangci-lint
 VERSION ?= dev
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: build generate check-generated test lint e2e sync-spec clean
+.PHONY: build generate check-generated test lint e2e e2e-docs sync-spec clean
 
 build:
 	$(GO) build -trimpath -ldflags '$(LDFLAGS)' -o cchp ./cmd/cchp
@@ -29,6 +29,11 @@ e2e:
 	scripts/e2e/up.sh
 	scripts/e2e/bootstrap.sh
 	scripts/e2e/test.sh
+
+# End-to-end tests of cchp docs in every language against the documentation
+# site: https://cch-plus.com, or a preview build named by CCHP_DOCS_URL.
+e2e-docs:
+	$(GO) test -tags e2e -count=1 ./test/docs/
 
 # Re-export the control-plane spec from a CCHP checkout path or a release tag,
 # then refresh the lock file and everything generated from it.

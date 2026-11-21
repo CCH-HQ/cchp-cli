@@ -15,8 +15,9 @@ output is not a terminal. Then:
 - the exit code is 0 on success and nonzero on any failure;
 - there are no prompts, pagers or colors, even on a terminal.
 
-`cchp skill show` prints raw Markdown unless `--json` is given, so it can be
-redirected into a file.
+`cchp skill show`, `cchp docs read` and `cchp docs full` print raw Markdown
+unless `--json` is given, so it can be redirected into a file. On a terminal,
+`cchp docs read` and `cchp docs full` render it for reading.
 
 ## The result object
 
@@ -52,7 +53,10 @@ redirected into a file.
 
 Discovery and support commands (`commands`, `schema`, `version`, `guide`,
 `status`, `login`, `logout`, `skill install`) use the same object with their
-content in `data`.
+content in `data`. So do the docs commands (`docs index`, `docs read`,
+`docs search`, `docs full`); [docs-commands.md](docs-commands.md#output) lists
+their `data` fields, and they report the docs site's answers with the kinds
+below.
 
 ### Pagination
 

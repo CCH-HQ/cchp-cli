@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-11-21
+
+Built from the CCHP v1.0.15 control-plane spec with embedded Restish v2.3.0.
+
+### Added
+
+- `cchp docs` reads the CCHP documentation at cch-plus.com through its
+  [llms.txt](https://llmstxt.org) files, with no sign-in, so agents can answer
+  users and find how to configure something before running the matching
+  command:
+  - `cchp docs index` lists the pages by section with their title, slug, URL
+    and description, from `/<lang>/llms.txt`;
+  - `cchp docs read <slug|url>` prints a page as Markdown, from
+    `/<lang>/docs/<slug>.md`; it takes a slug, a docs URL or a `.md` URL, and a
+    page missing in the chosen language fails with `not_found` and names the
+    languages that have it;
+  - `cchp docs search <words>` uses the site's full-text search and lists the
+    best matching sections with their page title, section, URL, slug, snippet
+    and score; `--limit` (1 to 50) and `--read-top N`, which adds the Markdown
+    of the N best pages;
+  - `cchp docs full` prints every page of a language from
+    `/<lang>/llms-full.txt`.
+  - Languages zh-CN, zh-TW, en, ja, ru and ko, picked by `--lang`, then
+    `CCHP_DOCS_LANG`, then the system locale (`LC_ALL`, `LC_MESSAGES`, `LANG`;
+    `zh_HK` and `zh_MO` read zh-TW), then en.
+  - `--docs-url` or `CCHP_DOCS_URL` points at a preview build; plain `http://`
+    only for this computer.
+  - Documents are cached in cchp's cache directory for at most 5 minutes, then
+    revalidated with `ETag` and `Last-Modified`; `--no-cache` fetches them
+    again. Reads are retried like other reads. The docs commands never send
+    credentials.
+  - `read` and `full` print raw Markdown unless `--json` is given; on a
+    terminal they render it. See [docs/docs-commands.md](docs/docs-commands.md).
+
 ## [v0.1.4] - 2026-11-20
 
 Built from the CCHP v1.0.15 control-plane spec with embedded Restish v2.3.0.
@@ -364,7 +398,8 @@ Restish v2.3.0.
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
 
-[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.2.0...HEAD
+[v0.2.0]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.4...v0.2.0
 [v0.1.4]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.1...v0.1.2
