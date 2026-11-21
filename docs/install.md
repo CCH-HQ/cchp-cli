@@ -43,8 +43,40 @@ curl -fsSL https://raw.githubusercontent.com/CCH-HQ/cchp-cli/main/install.sh | C
 go install github.com/CCH-HQ/cchp-cli/cmd/cchp@latest
 ```
 
-This needs Go 1.27 or newer. The binary reports its version as `dev`; release
-builds report the tag.
+This needs Go 1.27 or newer. Tagged `go install` builds report their release
+tag; local `go build` binaries report `dev`.
+
+## Update
+
+```sh
+cchp update
+```
+
+`cchp update` detects how `cchp` was installed and updates it safely, without
+signing in or sending your CCHP management token:
+
+- **Homebrew** (binary in Homebrew's Cellar): runs `brew upgrade cch-hq/tap/cchp`
+  (refreshing formulas with `brew update` if needed).
+- **Go install** (binary in `$GOBIN` or `$GOPATH/bin` with `go` in `PATH`): runs
+  `go install github.com/CCH-HQ/cchp-cli/cmd/cchp@<version>`.
+- **Direct binary / `install.sh`**: downloads the platform archive and
+  `checksums.txt` from GitHub Releases, verifies the SHA-256 checksum
+  (fail-closed), extracts the binary, and replaces it atomically.
+- **Development build (`dev` / non-SemVer)**: refuses to overwrite unless
+  `--force` is given.
+
+Useful flags:
+
+```sh
+cchp update --check            # check the latest release without updating
+cchp update --dry-run          # show the planned update without changing anything
+cchp update --version v0.2.0   # install a specific release (direct or Go installs)
+cchp update --force            # reinstall even if up to date or a dev build
+cchp update --json             # print one JSON result object
+```
+
+If updating fails for any reason, `cchp update` prints manual upgrade commands
+and a link to the official install and update documentation.
 
 ## Manual download
 

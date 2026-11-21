@@ -82,3 +82,9 @@ fetch several pages with `--page-limit N --max-items M`. See
 
 CC Hub imports have their own command, `cchp import run`. See
 [references/workflows.md](references/workflows.md) for it and other recipes.
+
+## Keeping cchp up to date
+
+`cchp update --check --json` checks for newer CLI releases with no sign-in;
+`cchp update --json` detects Homebrew, Go, or direct installs and updates
+safely (use `--dry-run` to inspect first).

@@ -25,6 +25,13 @@ curl -fsSL https://raw.githubusercontent.com/CCH-HQ/cchp-cli/main/install.sh | s
 Or with Go: `go install github.com/CCH-HQ/cchp-cli/cmd/cchp@latest`.
 Details and other options: [docs/install.md](docs/install.md).
 
+To update an existing install:
+
+```sh
+cchp update          # detects Homebrew, Go, or direct binary install
+cchp update --check  # check for a newer release without installing
+```
+
 ## Start in 30 seconds: people
 
 1. In the CCHP console, open **Account › Security › Management tokens** and create a token.

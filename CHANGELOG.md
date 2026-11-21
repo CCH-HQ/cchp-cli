@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- `cchp update` checks GitHub Releases and updates `cchp` automatically without
+  needing a sign-in or sending any CCHP management token:
+  - detects how `cchp` was installed from the executable path: Homebrew Cellar
+    (`brew upgrade cch-hq/tap/cchp`, refreshing with `brew update` when the tap
+    is stale), Go install in `$GOBIN` or `$GOPATH/bin` (`go install
+    github.com/CCH-HQ/cchp-cli/cmd/cchp@<version>`), direct binary /
+    `install.sh` (downloads the matching `.tar.gz`/`.zip` release archive and
+    `checksums.txt`, verifies SHA-256 fail-closed, validates against archive
+    path traversal, and replaces the binary atomically), and development builds
+    (`dev` / non-SemVer, refused unless `--force` is given);
+  - supports `--check`, `--force`, `--version <vX.Y.Z>`, and inherited global
+    `--json`, `--dry-run`, `--timeout`, and `--debug` flags;
+  - on any failure, reports a structured error whose hint prints concrete manual
+    upgrade steps and the locale-appropriate official update guide URL
+    (`https://cch-plus.com/<lang>/docs/cli#install`).
+- Tagged `go install` builds now resolve their release version from embedded Go
+  module build info instead of reporting `dev`.
+
 ## [v0.2.0] - 2026-11-21
 
 Built from the CCHP v1.0.15 control-plane spec with embedded Restish v2.3.0.

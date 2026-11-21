@@ -44,7 +44,7 @@ func (a *app) rootCommand() *cobra.Command {
 		&cobra.Group{ID: "agent", Title: "For agents and scripts:"},
 	)
 
-	for _, c := range []*cobra.Command{a.loginCommand(), a.logoutCommand(), a.statusCommand(), a.whoamiCommand(), a.guideCommand(), a.docsCommand()} {
+	for _, c := range []*cobra.Command{a.loginCommand(), a.logoutCommand(), a.statusCommand(), a.whoamiCommand(), a.guideCommand(), a.docsCommand(), a.updateCommand()} {
 		c.GroupID = "start"
 		root.AddCommand(c)
 	}
