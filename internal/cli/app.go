@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -101,6 +102,9 @@ func Run(args []string, stdio IO, build BuildInfo) int {
 	root.SetIn(stdio.In)
 	root.SetOut(stdio.Out)
 	root.SetErr(stdio.Err)
+	root.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		return preferUnknownCommand(root, cmd, args, err)
+	})
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	err = root.ExecuteContext(ctx)
@@ -139,6 +143,79 @@ func usageFailure(err error) *contract.Failure {
 		f.Err.Hint = "See the flags with --help."
 	}
 	return f
+}
+
+// preferUnknownCommand reports an unknown subcommand instead of an unknown flag
+// when Cobra parses flags meant for a subcommand against its parent command
+// (for example, "cchp bogus --lang zh-CN" or "cchp providers bogus --limit 10").
+func preferUnknownCommand(root, cmd *cobra.Command, args []string, err error) error {
+	if err == nil || !cmd.HasSubCommands() || !isUnknownFlagError(err) {
+		return err
+	}
+	found, rem, findErr := root.Find(args)
+	if findErr != nil || found != cmd {
+		return err
+	}
+	pos := firstPositionalBeforeUnknownFlag(cmd, rem)
+	if pos == "" {
+		return err
+	}
+	if argErr := cmd.ValidateArgs([]string{pos}); argErr != nil {
+		return argErr
+	}
+	if cmd.Args == nil {
+		return suggestSubcommand(cmd, []string{pos})
+	}
+	return err
+}
+
+func isUnknownFlagError(err error) bool {
+	msg := err.Error()
+	return strings.HasPrefix(msg, "unknown flag:") || strings.HasPrefix(msg, "unknown shorthand flag:")
+}
+
+// firstPositionalBeforeUnknownFlag scans the args handed to cmd and returns the
+// first positional token before any unrecognized flag, or "" if an unknown flag
+// appears first.
+func firstPositionalBeforeUnknownFlag(cmd *cobra.Command, args []string) string {
+	flags := cmd.Flags()
+	for i := 0; i < len(args); i++ {
+		tok := args[i]
+		if tok == "--" {
+			return ""
+		}
+		if strings.HasPrefix(tok, "--") && len(tok) > 2 {
+			name, _, hasEq := strings.Cut(tok[2:], "=")
+			f := flags.Lookup(name)
+			if f == nil {
+				return ""
+			}
+			if !hasEq && f.NoOptDefVal == "" {
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(tok, "-") && len(tok) > 1 {
+			shorts := tok[1:]
+			for len(shorts) > 0 {
+				r, size := utf8.DecodeRuneInString(shorts)
+				shorts = shorts[size:]
+				f := flags.ShorthandLookup(string(r))
+				if f == nil {
+					return ""
+				}
+				if f.NoOptDefVal == "" {
+					if shorts == "" {
+						i++
+					}
+					break
+				}
+			}
+			continue
+		}
+		return tok
+	}
+	return ""
 }
 
 // report prints a failure in the current mode and returns its exit code.

@@ -362,13 +362,18 @@ func notSignedIn(err error) error {
 // orgID is the token's organization, used for orgId and X-CCH-Organization so
 // cchp never names a different organization than the token's own.
 func (r *Runner) orgID(ctx context.Context, o Options) (string, error) {
+	_, hasOrgFlag := o.Op.Param("org-id")
 	if o.DryRun {
 		p, err := r.Store.Current()
 		if err != nil {
 			return "", err
 		}
 		if p == nil || p.Identity.OrganizationID == "" {
-			return "", contract.Fail(contract.KindUsage, contract.ExitUsage, "a dry run without a saved sign-in cannot know your organization; pass --org-id")
+			if hasOrgFlag {
+				return "", contract.Fail(contract.KindUsage, contract.ExitUsage, "a dry run without a saved sign-in cannot know your organization; pass --org-id")
+			}
+			return "", contract.Fail(contract.KindUsage, contract.ExitUsage, "a dry run without a saved sign-in cannot know your organization").
+				WithHint("Sign in first with cchp login so cchp knows your organization.")
 		}
 		return p.Identity.OrganizationID, nil
 	}
@@ -380,7 +385,10 @@ func (r *Runner) orgID(ctx context.Context, o Options) (string, error) {
 		return "", notSignedIn(err)
 	}
 	if id.OrganizationID == "" {
-		return "", contract.Fail(contract.KindUsage, contract.ExitUsage, "your token has no organization; pass --org-id")
+		if hasOrgFlag {
+			return "", contract.Fail(contract.KindUsage, contract.ExitUsage, "your token has no organization; pass --org-id")
+		}
+		return "", contract.Fail(contract.KindUsage, contract.ExitUsage, "your token has no organization")
 	}
 	return id.OrganizationID, nil
 }
