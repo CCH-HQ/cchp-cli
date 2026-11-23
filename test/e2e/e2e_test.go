@@ -253,7 +253,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	}
 	r = cchp(t, env, "", "version", "--json")
 	expectOK(t, r)
-	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.15"`) {
+	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.16"`) {
 		t.Fatalf("version %s", r.res.Data)
 	}
 	expectFail(t, cchp(t, env, "", "api", "noSuchOperation", "--json"), 2, "usage")
@@ -520,6 +520,79 @@ func TestReadsAddedInV1013(t *testing.T) {
 	}
 	expectOK(t, s.run(t, "", "admin", "web-vitals", "--hours", "24"))
 	expectOK(t, s.run(t, "", "models", "price-table-sync"))
+}
+
+// Operations CCHP v1.0.16 added answer a management token, mask raw upstream
+// api_keys in dry runs, and gate quota resets behind --confirm.
+func TestOperationsAddedInV1016(t *testing.T) {
+	s := newSession(t)
+	provider := createProvider(t, s, fmt.Sprintf("NewAPI %d", time.Now().UnixNano()))
+
+	r := s.run(t, "", "providers", "new-api-group-sync", provider)
+	expectOK(t, r)
+	if !strings.Contains(string(r.res.Data), `"provider_id":"`+provider+`"`) {
+		t.Fatalf("new-api-group-sync %s", r.res.Data)
+	}
+
+	dry := s.run(t, `{"api_keys":["sk-e2e-never-shown"]}`, "keys", "lookup-upstream", provider, "--body-file", "-", "--dry-run")
+	expectOK(t, dry)
+	if strings.Contains(dry.stdout, "sk-e2e-never-shown") || !strings.Contains(string(dry.res.DryRun.Body), `"api_keys":"[redacted]"`) {
+		t.Fatalf("lookup-upstream dry run body %s", dry.res.DryRun.Body)
+	}
+
+	teams := s.run(t, "", "org", "teams")
+	expectOK(t, teams)
+	var teamList struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(teams.res.Data, &teamList); err != nil {
+		t.Fatal(err)
+	}
+	if len(teamList.Items) == 0 {
+		t.Fatalf("expected at least one team: %s", teams.res.Data)
+	}
+	tpg := s.run(t, "", "org", "team-provider-groups", teamList.Items[0].ID)
+	expectOK(t, tpg)
+	if !strings.Contains(string(tpg.res.Data), `"groups":`) {
+		t.Fatalf("team-provider-groups %s", tpg.res.Data)
+	}
+
+	me := s.run(t, "", "account", "me")
+	expectOK(t, me)
+	var account struct {
+		User struct {
+			ID string `json:"id"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(me.res.Data, &account); err != nil {
+		t.Fatal(err)
+	}
+	if account.User.ID == "" {
+		t.Fatalf("account me %s", me.res.Data)
+	}
+	ref := s.run(t, "", "org", "member-referral", account.User.ID)
+	expectOK(t, ref)
+	if !strings.Contains(string(ref.res.Data), `"userId":"`+account.User.ID+`"`) {
+		t.Fatalf("member-referral %s", ref.res.Data)
+	}
+
+	// Quota usage reset is destructive and requires --confirm.
+	expectFail(t, s.run(t, `{"reason":"e2e policy check"}`, "billing", "reset-member-quota-usage", account.User.ID, "--body-file", "-", "--allow-write"), 13, "policy")
+	resetDry := s.run(t, `{"reason":"e2e dry run"}`, "billing", "reset-member-quota-usage", account.User.ID, "--body-file", "-", "--dry-run")
+	expectOK(t, resetDry)
+
+	// New query flags added in v1.0.16 work against the live server and encode cleanly.
+	expectOK(t, s.run(t, "", "requests", "list", "--include-empty-model", "--limit", "1"))
+	upd := s.run(t, "", "admin", "check-updates", "--channel", "stable", "--locale", "en-US", "--dry-run")
+	expectOK(t, upd)
+	if upd.res.DryRun == nil || !strings.Contains(upd.res.DryRun.URL, "channel=stable") || !strings.Contains(upd.res.DryRun.URL, "locale=en-US") {
+		t.Fatalf("check-updates dry run URL %+v", upd.res.DryRun)
+	}
+
+	// Local member creation is excluded because the server requires a browser session.
+	expectFail(t, s.run(t, "", "api", "createOrgLocalMember"), 8, "browser_session_required")
 }
 
 func TestPermissionDenied(t *testing.T) {

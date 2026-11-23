@@ -2,10 +2,29 @@
 
 ## [Unreleased]
 
+## [v0.2.1] - 2026-11-23
+
+Built from the CCHP v1.0.16 control-plane spec with embedded Restish v2.3.0.
+
 ### Added
 
+- Commands for the operations CCHP v1.0.16 added:
+  - New API group auto-sync in `cchp providers`: `new-api-group-sync`,
+    `update-new-api-group-sync`, `preview-new-api-group-sync`,
+    `run-new-api-group-sync`, `start-new-api-group-sync` and
+    `new-api-group-sync-run`, plus upstream token metadata lookup in
+    `cchp keys lookup-upstream`;
+  - organization member referral management in `cchp org`: `member-referral`,
+    `create-member-referral`, `update-member-referral` and
+    `delete-member-referral`, plus `cchp org team-provider-groups`;
+  - member quota window reset in `cchp billing reset-member-quota-usage` and
+    stateless client icon preview in `cchp safety preview-client-icon`.
+- Flags for parameters CCHP v1.0.16 added to existing operations:
+  `--include-empty-model` on `cchp requests list` and `export`, and `--locale`
+  on `cchp admin check-updates`.
 - `cchp update` checks GitHub Releases and updates `cchp` automatically without
-  needing a sign-in or sending any CCHP management token:
+  needing a sign-in or sending any CCHP management token
+  ([#12](https://github.com/CCH-HQ/cchp-cli/pull/12)):
   - detects how `cchp` was installed from the executable path: Homebrew Cellar
     (`brew upgrade cch-hq/tap/cchp`, refreshing with `brew update` when the tap
     is stale), Go install in `$GOBIN` or `$GOPATH/bin` (`go install
@@ -20,7 +39,31 @@
     upgrade steps and the locale-appropriate official update guide URL
     (`https://cch-plus.com/<lang>/docs/cli#install`).
 - Tagged `go install` builds now resolve their release version from embedded Go
-  module build info instead of reporting `dev`.
+  module build info instead of reporting `dev`
+  ([#12](https://github.com/CCH-HQ/cchp-cli/pull/12)).
+
+### Changed
+
+- Redaction also masks `api_keys` arrays of raw upstream API keys in dry runs,
+  traces and error bodies (for example `cchp keys lookup-upstream`), while
+  keeping object arrays such as `apiKeys` intact.
+
+### Fixed
+
+- Passing an unknown subcommand together with flags meant for it (such as
+  `cchp providers bogus --limit 10`) now reports the unknown command instead of
+  the unknown flag, and dry runs without a saved sign-in no longer suggest
+  `--org-id` on operations that do not define that flag
+  ([#11](https://github.com/CCH-HQ/cchp-cli/pull/11)).
+
+### Spec and coverage
+
+- The pinned spec is CCHP v1.0.16 (`b7d7bc1518`): 754 operations, 634
+  available, 120 excluded with reasons, 0 unsupported. See
+  [docs/coverage.md](docs/coverage.md).
+- One new browser-only operation is excluded with its reason: creating a local
+  member account directly (`createOrgLocalMember`), which requires a browser
+  session, human verification and recent sign-in and rejects management tokens.
 
 ## [v0.2.0] - 2026-11-21
 
@@ -418,7 +461,8 @@ Restish v2.3.0.
 - Static binaries for Linux, macOS and Windows on amd64 and arm64, with
   checksums. `install.sh` verifies the checksum before installing.
 
-[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/CCH-HQ/cchp-cli/compare/v0.2.1...HEAD
+[v0.2.1]: https://github.com/CCH-HQ/cchp-cli/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.4...v0.2.0
 [v0.1.4]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.3...v0.1.4
 [v0.1.3]: https://github.com/CCH-HQ/cchp-cli/compare/v0.1.2...v0.1.3
