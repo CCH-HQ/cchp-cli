@@ -182,6 +182,27 @@ func (s *session) finishSetup() error {
 				orgRequested = true
 				err = s.refreshSessionCSRF()
 			}
+		case "client_ip":
+			var view struct {
+				Options []struct {
+					IP      string `json:"ip"`
+					Sources []struct {
+						Kind   string `json:"kind"`
+						Header string `json:"header,omitempty"`
+					} `json:"sources"`
+				} `json:"options"`
+			}
+			if err = s.call(http.MethodGet, "/api/setup/client-ip", nil, nil, &view); err == nil {
+				if len(view.Options) == 0 || len(view.Options[0].Sources) == 0 {
+					return errors.New("setup client-ip returned no options")
+				}
+				body := map[string]any{
+					"ip":         view.Options[0].IP,
+					"source":     view.Options[0].Sources[0],
+					"cloudflare": false,
+				}
+				err = s.call(http.MethodPost, "/api/setup/client-ip", body, nil, nil)
+			}
 		default:
 			err = fmt.Errorf("unexpected setup step %q", status.Step)
 		}

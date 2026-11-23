@@ -59,20 +59,21 @@ func TestJSONMasksSecretFieldsAtAnyDepth(t *testing.T) {
 func TestJSONMasksRequestCredentialFields(t *testing.T) {
 	in := `{"s3_access_key_id":"AKIA1","s3_secret_access_key":"sak1","secrets":{"secretAccessKey":"sak2","langfuseSecretKey":"lsk"},` +
 		`"config":{"secretKey":"sk2"},"new_password":"np","temporaryPassword":"tp","invitation_token":"it1","invitationToken":"it2",` +
-		`"new_api_management_token":"mt","token":"t","proxies":[{"password":"pp","hasPassword":true,"host":"h"}],` +
+		`"new_api_management_token":"mt","token":"t","api_keys":["sk-raw-1","sk-raw-2"],"apiKeys":[{"id":"k1","name":"keep"}],` +
+		`"proxies":[{"password":"pp","hasPassword":true,"host":"h"}],` +
 		`"tokenEndpoint":"https://idp.example/token","tokenBasis":"input","apiKeyId":"k1","secret_prefix":"sp"}`
 	out, err := JSON([]byte(in))
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := string(out)
-	for _, secret := range []string{`"sak1"`, `"sak2"`, `"lsk"`, `"sk2"`, `"np"`, `"tp"`, `"it1"`, `"it2"`, `"mt"`, `"t"`, `"pp"`} {
+	for _, secret := range []string{`"sak1"`, `"sak2"`, `"lsk"`, `"sk2"`, `"np"`, `"tp"`, `"it1"`, `"it2"`, `"mt"`, `"t"`, `"pp"`, `"sk-raw-1"`, `"sk-raw-2"`} {
 		if strings.Contains(s, secret) {
 			t.Fatalf("secret %s survived: %s", secret, s)
 		}
 	}
 	for _, kept := range []string{`"s3_access_key_id":"AKIA1"`, `"hasPassword":true`, `"host":"h"`, `"tokenEndpoint":"https://idp.example/token"`,
-		`"tokenBasis":"input"`, `"apiKeyId":"k1"`, `"secret_prefix":"sp"`} {
+		`"tokenBasis":"input"`, `"apiKeyId":"k1"`, `"secret_prefix":"sp"`, `"api_keys":"[redacted]"`, `"apiKeys":[{"id":"k1","name":"keep"}]`} {
 		if !strings.Contains(s, kept) {
 			t.Fatalf("%s should stay: %s", kept, s)
 		}

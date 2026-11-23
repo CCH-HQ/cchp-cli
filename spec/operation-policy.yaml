@@ -96,6 +96,7 @@ operations:
   createLLMToken: {risk: write, permission: "llm_token:create", secret_fields: [plaintext]}
   createLocalUser: {risk: write, permission: "identity:write"}
   createMemberLLMKey: {risk: write, permission: "member_llm_key:create", secret_fields: [plaintext]}
+  createMemberReferral: {risk: write, permission: "member:role:update"}
   createModel: {risk: write, permission: "provider:write"}
   createModelAlias: {risk: write, permission: "provider:write"}
   createModelSafetyRule: {risk: write, permission: "config:write"}
@@ -104,6 +105,7 @@ operations:
   createOrg: {risk: write, permission: "organization:write"}
   createOrgCustomRole: {risk: write, permission: "identity:write"}
   createOrgInvite: {risk: write, permission: "org_invite:create"}
+  createOrgLocalMember: {risk: write, permission: "member:invite"}
   createOrgProvider: {risk: write, permission: "provider:write"}
   createOrgSSOConnector: {risk: write, permission: "identity:write"}
   createPaymentChannel: {risk: write, permission: "payment_channel:write"}
@@ -115,6 +117,7 @@ operations:
   createProviderKeyBulkJob: {risk: destructive, permission: "provider_key:write"}
   createProviderKeyModelSync: {risk: write, permission: "provider_key:write"}
   createProviderLivenessTask: {risk: write, permission: "provider_key:write"}
+  createProviderNewAPIGroupSyncRun: {risk: destructive, permission: "provider:write", note: "Also requires provider_key:write. Queues a background sync that creates upstream New API tokens and CCHP endpoints/keys, and revokes managed keys for disappeared upstream groups."}
   createQuotaPolicy: {risk: write, permission: "quota_policy:write"}
   createRealtimeSipRoute: {risk: write, permission: "provider_key:write", secret_fields: [webhook_secret]}
   createSearchProvider: {risk: write, permission: "provider:write"}
@@ -138,6 +141,7 @@ operations:
   deleteDomainBinding: {risk: destructive, permission: "domain_binding:write"}
   deleteErrorRule: {risk: destructive, permission: "error_rule:write"}
   deleteJITPolicy: {risk: destructive, permission: "jit:write"}
+  deleteMemberReferral: {risk: destructive, permission: "member:role:update"}
   deleteModel: {risk: destructive, permission: "provider:write"}
   deleteModelAlias: {risk: destructive, permission: "provider:write"}
   deleteModelSafetyRule: {risk: destructive, permission: "config:write"}
@@ -256,6 +260,7 @@ operations:
   getMemberAccount: {risk: read, retry: true, permission: "member:read"}
   getMemberBilling: {risk: read, retry: true, permission: "member_billing:read"}
   getMemberQuota: {risk: read, retry: true, permission: "member_billing:read"}
+  getMemberReferral: {risk: read, retry: true, permission: "member:read"}
   getModel: {risk: read, retry: true, permission: "provider:read"}
   getModelPricing: {risk: read, retry: true, permission: "provider:read"}
   getModelSafetyRunOperation: {risk: read, retry: true, permission: "config:read"}
@@ -315,6 +320,8 @@ operations:
   getProviderKeysByIds: {risk: read, retry: true, permission: "provider:read"}
   getProviderListCounts: {risk: read, retry: true, permission: "provider:read"}
   getProviderNetworkProxies: {risk: read, retry: true, permission: "provider:read"}
+  getProviderNewAPIGroupSync: {risk: read, retry: true, permission: "provider:read"}
+  getProviderNewAPIGroupSyncRun: {risk: read, retry: true, permission: "provider:read"}
   getProviderNewKeyUpstreamDefaults: {risk: read, retry: true, permission: "provider_key:write"}
   getPublicCatalogModel: {risk: read, retry: true}
   getPublicCatalogModelClients: {risk: read, retry: true}
@@ -501,6 +508,7 @@ operations:
   listTasks: {risk: read, retry: true, permission: "task:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
   listTeamAssignmentOrgs: {risk: read, retry: true, permission: "team_member:invite"}
   listTeamMembers: {risk: read, retry: true, permission: "team_member:read"}
+  listTeamProviderGroups: {risk: read, retry: true, permission: "team:read"}
   listTeams: {risk: read, retry: true, permission: "team:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: items}}
   listTransactionalEmails: {risk: read, retry: true, permission: "operations:read"}
   listUsageByKey: {risk: read, retry: true, permission: "usage:read"}
@@ -522,6 +530,7 @@ operations:
   listWalletReferrals: {risk: read, retry: true, permission: "wallet:read", pagination: {style: cursor, param: cursor, limit_param: limit, next: nextCursor, items: records, total: total}}
   logoutUserSession: {risk: write}
   lookupGeoIP: {risk: read}
+  lookupProviderKeysUpstream: {risk: write, permission: "provider_key:write", note: "Sends live requests to the upstream New API and counts toward the upstream lookup rate limit; nothing is saved."}
   lookupRequestArchive: {risk: read, permission: "request_archive:read"}
   markAnnouncementRead: {risk: write, permission: "announcement:update"}
   markConfigExperimentSucceeded: {risk: write, permission: "config:publish"}
@@ -539,6 +548,7 @@ operations:
   previewBillingAdjustment: {risk: read, permission: "operations:read"}
   previewCCHubImport: {risk: write, permission: "config:write"}
   previewCasbinMembershipRepair: {risk: read, retry: true, permission: "identity:read"}
+  previewClientDefinitionIcon: {risk: write, permission: "operations:write", note: "Sends an outbound HTTP request to the website to fetch its icon; nothing is saved."}
   previewGrantAdjustment: {risk: read, permission: "grant_adjustment:read"}
   previewInvitation: {risk: write}
   previewMailTemplate: {risk: read, permission: "config:read"}
@@ -547,6 +557,7 @@ operations:
   previewPrivacyFilterSettingsImport: {risk: read, permission: "config:read"}
   previewProviderKeyModelSyncDraft: {risk: write, permission: "provider:read"}
   previewProviderModels: {risk: write, permission: "provider:read"}
+  previewProviderNewAPIGroupSync: {risk: write, permission: "provider:read", note: "Sends live read requests to the upstream New API; nothing is saved."}
   previewRedeemCodeApply: {risk: read, permission: "operations:read"}
   previewRedeemCodes: {risk: read, permission: "wallet:use"}
   previewRedeemForMember: {risk: read, permission: "member_billing:redeem", note: "The check counts toward the member's redemption rate limit."}
@@ -588,6 +599,7 @@ operations:
   replayUsageDeadLetter: {risk: write, permission: "config:write"}
   reportWebVitals: {risk: write}
   resetAuthPassword: {risk: write}
+  resetMemberQuotaUsage: {risk: destructive, permission: "quota_policy:write", note: "Advances the member's current-window reset watermark to now; past usage logs and ledger records stay unchanged."}
   resetModelSafetyRule: {risk: destructive, permission: "config:write"}
   resetProviderGroupModelRules: {risk: destructive, permission: "provider:write"}
   resetUserSecurity: {risk: write, permission: "identity:write"}
@@ -629,6 +641,7 @@ operations:
   runModelSafetyTaskNow: {risk: write, permission: "config:write"}
   runModelSafetyTest: {risk: write, permission: "config:write"}
   runProviderLivenessTaskNow: {risk: write, permission: "provider_key:write"}
+  runProviderNewAPIGroupSync: {risk: destructive, permission: "provider:write", note: "Also requires provider_key:write. Creates upstream New API tokens and CCHP endpoints/keys, and revokes managed keys for disappeared upstream groups."}
   saveAdminPluginConfig: {risk: write, permission: "plugin:manage"}
   saveAdminPluginTargets: {risk: write, permission: "plugin:manage"}
   saveClientAccessRuleSet: {risk: destructive, permission: "config:write", note: "The replaced rules stay in the revision history."}
@@ -719,6 +732,7 @@ operations:
   updateLLMToken: {risk: write, permission: "llm_token:update"}
   updateMember: {risk: write, permission: "member:role:update"}
   updateMemberLLMKey: {risk: write, permission: "member_llm_key:update"}
+  updateMemberReferral: {risk: write, permission: "member:role:update"}
   updateMemberRole: {risk: destructive, permission: "member:role:update"}
   updateModel: {risk: write, permission: "provider:write"}
   updateModelSafetyRule: {risk: write, permission: "config:write"}
@@ -735,6 +749,7 @@ operations:
   updateProviderKey: {risk: write, permission: "provider_key:write"}
   updateProviderKeyTaskCallbacks: {risk: write, permission: "provider_key:write"}
   updateProviderLivenessTask: {risk: write, permission: "provider_key:write"}
+  updateProviderNewAPIGroupSync: {risk: write, permission: "provider:write", note: "Also requires provider_key:write."}
   updateQuotaPolicy: {risk: write, permission: "quota_policy:write"}
   updateRealtimeSipRoute: {risk: write, permission: "provider_key:write", secret_fields: [webhook_secret]}
   updateRedeemCode: {risk: write, permission: "operations:write"}

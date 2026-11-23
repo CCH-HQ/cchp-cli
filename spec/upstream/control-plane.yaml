@@ -519,6 +519,8 @@ components:
           type: array
         password_change_required:
           type: boolean
+        password_reset_disabled:
+          type: boolean
         recovery_codes_remaining:
           format: int64
           type: integer
@@ -532,6 +534,7 @@ components:
         - has_password
         - email_verified
         - password_change_required
+        - password_reset_disabled
         - recovery_codes_remaining
         - identities
       type: object
@@ -2095,6 +2098,8 @@ components:
           type: array
         passwordChangeRequired:
           type: boolean
+        passwordResetDisabled:
+          type: boolean
         pendingEmailVerifications:
           description: 当前安全版本下未消费且未过期的邮箱验证/换绑请求，最多最近二十条；不返回验证码
           items:
@@ -2111,6 +2116,7 @@ components:
         - emailVerifiedAt
         - hasPassword
         - passwordChangeRequired
+        - passwordResetDisabled
         - totpEnrolled
         - totpActive
         - passkeys
@@ -3877,21 +3883,36 @@ components:
         api_key:
           description: 上游凭据明文(加密落库;响应绝不回显)
           type: string
+        balance_query_url:
+          description: 自定义余额查询地址(同主机规则;空=内置探测顺序)
+          type: string
         bound_endpoint_ids:
           description: 绑定的 Provider Endpoint ID 列表(省略/空=沿用 Provider 的全部 Endpoint)
           items:
             type: string
           type: array
+        capability_overrides:
+          $ref: "#/components/schemas/CapabilityOverrides"
+          description: 创建时一并发布的密钥级能力开关(provider_key scope);省略=全部默认开启
         cost_multiplier_ppm:
           description: 路由成本倍率(PPM;默认 1000000);开关开启且读到上游分组倍率时用读到的值
           format: int64
           minimum: 0
           type: integer
+        limits:
+          $ref: "#/components/schemas/QuotaLimitsInput"
+          description: 创建时一并落地的限额策略(provider_key scope);省略或全 0 = 不创建限额策略
         model_redirects:
           description: 该密钥的密钥级模型重定向,写成密钥 scope 的 model_redirect 覆写规则(省略 = 无)
           items:
             $ref: "#/components/schemas/ModelRedirectRuleInput"
           maxItems: 500
+          type: array
+        model_sync_exclusions:
+          description: 上游模型同步不再新增的名字(省略 = 没有排除);已在白名单里的名字不保存
+          items:
+            type: string
+          maxItems: 5000
           type: array
         model_whitelist:
           description: 该密钥的模型白名单(必须非空)
@@ -3910,6 +3931,14 @@ components:
           maximum: 999
           minimum: -999
           type: integer
+        provider_group_ids:
+          description: 显式绑定的 Provider Group ID 列表(省略/空=不绑定任何分组)
+          items:
+            type: string
+          type: array
+        session_reuse_enabled:
+          description: 创建时一并发布的密钥级会话复用开关(session.reuse_enabled);省略=继承上层配置
+          type: boolean
         upstream_ratio_auto_detect:
           description: 成本倍率自动探测开关,语义与单个创建相同
           type: boolean
@@ -5891,6 +5920,10 @@ components:
       properties:
         description:
           type: string
+        effectiveMultiplierPpm:
+          description: 成员经该分组的真实生效倍率 = 组织链 × 团队链 × (分组成本倍率 × 分组额外倍率)(PPM;成员属于多个团队且倍率不同时省略,由 teamEffectiveMultipliers 按团队给出)
+          format: int64
+          type: integer
         id:
           type: string
         multiplierPpm:
@@ -5899,6 +5932,16 @@ components:
           type: integer
         name:
           type: string
+        scopeRatePpm:
+          description: 本组织与成员团队链对该分组的额外倍率之积(PPM;成员属于多个团队且倍率不同时省略)
+          format: int64
+          type: integer
+        teamEffectiveMultipliers:
+          additionalProperties:
+            format: int64
+            type: integer
+          description: 查看者可见各团队经该分组的真实生效倍率(teamId -> PPM);只对登录成员返回
+          type: object
       required:
         - id
         - name
@@ -8764,8 +8807,14 @@ components:
           minLength: 1
           type: string
         organization_id:
-          description: 把新账号以 org_user 加入该组织并放进组织的默认团队;给出时由管理员确认邮箱属于此用户,账号邮箱记为已验证。省略时只创建账号,邮箱由用户本人验证
+          description: 把新账号以指定角色(默认 org_user)加入该组织并放进组织的默认团队;给出时由管理员确认邮箱属于此用户,账号邮箱记为已验证。省略时只创建账号,邮箱由用户本人验证
           maxLength: 64
+          type: string
+        require_password_change:
+          description: 首次登录是否要求修改密码(默认 true;false 时直接作为永久密码，无临时密码过期限制)
+          type: boolean
+        role:
+          description: 加入组织时的角色(org_superadmin/org_admin/org_user;默认 org_user，仅在给出 organization_id 时可用)
           type: string
         temporary_password:
           maxLength: 128
@@ -8817,6 +8866,35 @@ components:
         - plaintext
         - createdAt
         - plaintextReturned
+      type: object
+    CreateMemberReferralBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/CreateMemberReferralBody.json
+          format: uri
+          readOnly: true
+          type: string
+        direction:
+          description: 绑定方向:inviter = 为当前成员设置上级邀请人(targetUserId 是邀请人);invitee = 为当前成员新增下级被绑定用户(targetUserId 是被邀请人)
+          enum:
+            - inviter
+            - invitee
+          type: string
+        rewardsFrom:
+          description: 从此起算返利的订单付款时刻(须不早于 boundAt,否则 422 field_invalid);省略时默认为当前时刻(boundAt)
+          format: date-time
+          type: string
+        targetUserId:
+          description: 另一侧成员的用户 ID
+          maxLength: 128
+          minLength: 1
+          type: string
+      required:
+        - direction
+        - targetUserId
       type: object
     CreateModelAliasInputBody:
       additionalProperties: false
@@ -9094,6 +9172,85 @@ components:
           description: 团队码的目标团队(本组织未删除的团队,否则 422);省略 = 组织码(兑换时加入当时的默认团队)
           type: string
       type: object
+    CreateOrgLocalMemberInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/CreateOrgLocalMemberInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        display_name:
+          description: 展示名称
+          maxLength: 128
+          minLength: 1
+          type: string
+        email:
+          description: 新成员登录邮箱(全局唯一)
+          maxLength: 254
+          minLength: 1
+          type: string
+        require_password_change:
+          description: 首次登录是否要求修改密码(默认 true;false 时直接作为永久密码，无临时密码过期限制)
+          type: boolean
+        role:
+          description: 加入组织时的角色(org_superadmin/org_admin/org_user;默认 org_user，且必须严格低于调用方组织角色)
+          type: string
+        temporary_password:
+          description: 初始密码(8–128 个字符)
+          maxLength: 128
+          minLength: 8
+          type: string
+      required:
+        - email
+        - display_name
+        - temporary_password
+      type: object
+    CreateOrgLocalMemberOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/CreateOrgLocalMemberOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        displayName:
+          description: 成员展示名称
+          type: string
+        email:
+          description: 成员登录邮箱
+          type: string
+        passwordChangeRequired:
+          description: 成员首次登录是否必须修改密码
+          type: boolean
+        passwordResetDisabled:
+          description: 是否禁止通过邮箱验证码自助找回密码(恒为 true)
+          type: boolean
+        role:
+          description: 成员在本组织的角色
+          enum:
+            - org_superadmin
+            - org_admin
+            - org_user
+          type: string
+        teamId:
+          description: 加入的默认团队 ID;组织无默认团队时省略
+          type: string
+        userId:
+          description: 新创建用户的 ID
+          type: string
+      required:
+        - userId
+        - email
+        - displayName
+        - role
+        - passwordChangeRequired
+        - passwordResetDisabled
+      type: object
     CreateOrgOutputBody:
       additionalProperties: false
       properties:
@@ -9283,6 +9440,9 @@ components:
           items:
             type: string
           type: array
+        session_reuse_enabled:
+          description: 创建时一并发布的密钥级会话复用开关(session.reuse_enabled);省略=继承上层配置
+          type: boolean
         upstream_ratio_auto_detect:
           description: 成本倍率自动探测开关:true = 创建时读取上游分组倍率,读到时成本倍率从它开始,读不到时用 cost_multiplier_ppm 或默认 1.0x,读取失败不影响创建;false = 不读取并加入倍率排除名单;省略 = 不在创建时读取,开关保持默认开启
           type: boolean
@@ -10316,6 +10476,7 @@ components:
             - login_code
             - email_change_code
             - low_balance
+            - balance_exhausted
             - package_expiry
             - account_suspended
             - org_invitation
@@ -12293,6 +12454,28 @@ components:
       required:
         - items
       type: object
+    FetchedIcon:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/FetchedIcon.json
+          format: uri
+          readOnly: true
+          type: string
+        bytes:
+          format: int64
+          type: integer
+        icon:
+          type: string
+        mimeType:
+          type: string
+      required:
+        - icon
+        - mimeType
+        - bytes
+      type: object
     FieldNote:
       additionalProperties: false
       properties:
@@ -12490,6 +12673,9 @@ components:
         metadata:
           additionalProperties: {}
           type: object
+        referralReward:
+          $ref: "#/components/schemas/FinanceReferralRewardView"
+          description: 支付订单触发的推广返利(不含 ineligible);未产生返利时为 null
         timeline:
           items:
             $ref: "#/components/schemas/FinanceTimelineStepView"
@@ -12499,6 +12685,7 @@ components:
         - timeline
         - links
         - ledgerTransfers
+        - referralReward
         - metadata
       type: object
     FinanceEventListOutputBody:
@@ -12773,6 +12960,86 @@ components:
         - type
         - id
         - name
+      type: object
+    FinanceReferralInviterView:
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+      required:
+        - id
+        - name
+        - email
+      type: object
+    FinanceReferralRewardView:
+      additionalProperties: false
+      properties:
+        baseUnits:
+          format: int64
+          type: integer
+        cancelReason:
+          type: string
+        id:
+          type: string
+        inviteeEventId:
+          description: 被邀请人侧推广返利财务事件 ID;被邀请人返利为 0 时为 null
+          type:
+            - string
+            - "null"
+        inviteeUnits:
+          format: int64
+          type: integer
+        inviter:
+          $ref: "#/components/schemas/FinanceReferralInviterView"
+          description: 邀请人资料;用户已删除或对当前组织不可见时为 null
+        inviterEventId:
+          description: 邀请人侧推广返利财务事件 ID;邀请人返利为 0 时为 null
+          type:
+            - string
+            - "null"
+        inviterUnits:
+          format: int64
+          type: integer
+        qualifiedAt:
+          format: date-time
+          type: string
+        referralRecordId:
+          type: string
+        releaseAt:
+          format: date-time
+          type: string
+        rewardForm:
+          type: string
+        settledAt:
+          format: date-time
+          type:
+            - string
+            - "null"
+        status:
+          enum:
+            - frozen
+            - credited
+            - cancelled
+          type: string
+      required:
+        - id
+        - referralRecordId
+        - status
+        - rewardForm
+        - baseUnits
+        - inviterUnits
+        - inviteeUnits
+        - inviter
+        - qualifiedAt
+        - releaseAt
+        - settledAt
+        - cancelReason
+        - inviterEventId
+        - inviteeEventId
       type: object
     FinanceTeamView:
       additionalProperties: false
@@ -13345,6 +13612,9 @@ components:
         passwordChangeRequired:
           description: 成员下次登录必须修改密码(管理员设置了临时密码)
           type: boolean
+        passwordResetDisabled:
+          description: 是否禁止通过邮箱自助找回密码(管理员无邮件验证创建的账号为 true)
+          type: boolean
         passwordSet:
           description: 账号是否设置了密码(只用第三方登录的账号为 false)
           type: boolean
@@ -13353,6 +13623,7 @@ components:
         - emailVerified
         - passwordSet
         - passwordChangeRequired
+        - passwordResetDisabled
         - manageable
       type: object
     GetOrgHierarchyMatrixOutputBody:
@@ -15362,6 +15633,11 @@ components:
     InheritedAccessView:
       additionalProperties: false
       properties:
+        lockedDisabledGroupIds:
+          description: 被本组织或调用者所辖根团队之上的上级停用、当前调用者不可重新启用的供应商分组 ID;组织管理员可覆盖,字段省略
+          items:
+            type: string
+          type: array
         providerGroupSettings:
           description: 上级设置过的分组:enabled = 上级生效的开关(离本层最近、设置了开关的一层为准),rateMultiplierPpm = 链上各层额外倍率之积
           items:
@@ -16078,11 +16354,15 @@ components:
       additionalProperties: false
       properties:
         billedMultiplierPpm:
-          description: 所有者经该分组被计费的倍率 = costMultiplierPpm × scopeRatePpm(PPM)
+          description: 分组层计费倍率 = costMultiplierPpm × scopeRatePpm(PPM,不含组织链与团队链)
           format: int64
           type: integer
         costMultiplierPpm:
           description: 分组自身的出站倍率(PPM)
+          format: int64
+          type: integer
+        effectiveMultiplierPpm:
+          description: 所有者经该分组的真实生效倍率 = 组织链 × 团队链 × (costMultiplierPpm × scopeRatePpm)(PPM)
           format: int64
           type: integer
         groupTag:
@@ -16098,7 +16378,7 @@ components:
           format: int64
           type: integer
         reason:
-          description: 排在这个位置的依据:saved_order = 保存顺序;multiplier = 计费倍率;multiplier_tie_name = 倍率相同按名称;multiplier_tie_id = 倍率与名称都相同按 ID
+          description: 排在这个位置的依据:saved_order = 保存顺序;multiplier = 真实生效倍率;multiplier_tie_name = 倍率相同按名称;multiplier_tie_id = 倍率与名称都相同按 ID
           enum:
             - saved_order
             - multiplier
@@ -16124,6 +16404,7 @@ components:
         - costMultiplierPpm
         - scopeRatePpm
         - billedMultiplierPpm
+        - effectiveMultiplierPpm
         - reason
       type: object
     LLMKeyRouteGroupsView:
@@ -17668,6 +17949,24 @@ components:
         - items
         - nextCursor
       type: object
+    ListTeamProviderGroupsOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/ListTeamProviderGroupsOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        groups:
+          description: 本组织用于团队访问与倍率设置的脱敏供应商分组列表(按名称、ID 升序,不含成员数与供应商信息)
+          items:
+            $ref: "#/components/schemas/TeamProviderGroupView"
+          type: array
+      required:
+        - groups
+      type: object
     ListTeamsOutputBody:
       additionalProperties: false
       properties:
@@ -18979,7 +19278,7 @@ components:
       additionalProperties: false
       properties:
         billedMultiplierPpm:
-          description: 成员经该分组被计费的倍率 = costMultiplierPpm × scopeRatePpm(PPM);价格意向按它从低到高尝试分组,倍率区间按它判定
+          description: 分组层计费倍率 = costMultiplierPpm × scopeRatePpm(PPM,不含组织链与团队链)
           format: int64
           type: integer
         costMultiplierPpm:
@@ -18991,6 +19290,10 @@ components:
           type:
             - string
             - "null"
+        effectiveMultiplierPpm:
+          description: 成员经该分组的真实生效倍率 = 组织链 × 团队链 × (costMultiplierPpm × scopeRatePpm)(PPM);价格意向按它从低到高尝试分组,倍率区间按它判定
+          format: int64
+          type: integer
         groupTag:
           description: 稳定分组标签
           type: string
@@ -19011,6 +19314,7 @@ components:
         - costMultiplierPpm
         - scopeRatePpm
         - billedMultiplierPpm
+        - effectiveMultiplierPpm
       type: object
     LlmTokenResultBody:
       additionalProperties: false
@@ -19260,6 +19564,68 @@ components:
       required:
         - items
       type: object
+    LookupProviderKeyUpstreamItem:
+      additionalProperties: false
+      properties:
+        found:
+          description: 是否识别到上游令牌元数据
+          type: boolean
+        group_name:
+          description: 上游令牌所属分组名(令牌分组为空时回落为用户默认分组)
+          type: string
+        hint:
+          description: 附加提示码(例如 new_api_management_token_missing / management_token_rejected / management_token_scope_denied)
+          type: string
+        suggested_name:
+          description: 推荐密钥名称:优先使用 group_name,为空时使用 token_name
+          type: string
+        token_name:
+          description: 上游令牌名称
+          type: string
+        upstream_type:
+          description: 识别出的上游类型(例如 new_api)
+          type: string
+      required:
+        - found
+      type: object
+    LookupProviderKeysUpstreamInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/LookupProviderKeysUpstreamInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        api_keys:
+          description: 待识别的上游 API Key 明文列表(1..50);只读探测,绝不落库或写入日志
+          items:
+            type: string
+          maxItems: 50
+          minItems: 1
+          type: array
+      required:
+        - api_keys
+      type: object
+    LookupProviderKeysUpstreamOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/LookupProviderKeysUpstreamOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          description: 与输入 api_keys 一一对应的识别结果
+          items:
+            $ref: "#/components/schemas/LookupProviderKeyUpstreamItem"
+          type: array
+      required:
+        - items
+      type: object
     MailPreviewInputBody:
       additionalProperties: false
       properties:
@@ -19445,6 +19811,7 @@ components:
             - login_code
             - email_change_code
             - low_balance
+            - balance_exhausted
             - package_expiry
             - account_suspended
             - org_invitation
@@ -20692,6 +21059,89 @@ components:
         - value
         - layer
       type: object
+    MemberQuotaUsageResetBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/MemberQuotaUsageResetBody.json
+          format: uri
+          readOnly: true
+          type: string
+        metrics:
+          description: 要临时清零当前窗口用量的信用维度(省略时默认清零 credit1d 与 credit1w)
+          items:
+            enum:
+              - credit5h
+              - credit1d
+              - credit1w
+              - credit1m
+              - creditTotal
+            type: string
+          maxItems: 5
+          type: array
+        reason:
+          description: 临时清零原因(记入组织强审计)
+          maxLength: 500
+          minLength: 1
+          type: string
+      required:
+        - reason
+      type: object
+    MemberQuotaUsageResetResultView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/MemberQuotaUsageResetResultView.json
+          format: uri
+          readOnly: true
+          type: string
+        createdPolicy:
+          description: 成员原先没有已启用的用户层策略(继承组织成员默认限额)时,自动新建了一条零限额策略承载清零水印
+          type: boolean
+        idempotentReplay:
+          description: 是否为同一 Idempotency-Key 的重放
+          type: boolean
+        metrics:
+          description: 本次已临时清零的信用维度
+          items:
+            type: string
+          type: array
+        orgId:
+          description: 组织 ID
+          type: string
+        policyIds:
+          description: 本次更新或创建的用户层策略 ID
+          items:
+            type: string
+          type: array
+        resetAt:
+          description: 清零水印时刻(仅计入此时刻之后的用量)
+          format: date-time
+          type: string
+        scopeNote:
+          description: 生效范围说明:仅清零该成员在 user 与 organization_member 维度的当前窗口用量,不修改历史账单与流水,也不绕过 user_key、team 或 organization 限额池
+          type: string
+        userId:
+          description: 成员的用户 ID
+          type: string
+        windowPolicy:
+          $ref: "#/components/schemas/QuotaWindowPolicyView"
+          description: 更新后成员用户层策略生效中的窗口规则(含各维度 resetAfter)
+      required:
+        - orgId
+        - userId
+        - metrics
+        - resetAt
+        - windowPolicy
+        - policyIds
+        - createdPolicy
+        - scopeNote
+        - idempotentReplay
+      type: object
     MemberQuotaView:
       additionalProperties: false
       properties:
@@ -20728,6 +21178,9 @@ components:
         userLimits:
           $ref: "#/components/schemas/QuotaLimitsView"
           description: 成员自己的限额(0 = 没有自己的限额)
+        windowPolicy:
+          $ref: "#/components/schemas/QuotaWindowPolicyView"
+          description: 成员用户层策略生效中的窗口规则(含手动清零水印 resetAfter)
       required:
         - teamId
         - userLimits
@@ -20826,6 +21279,139 @@ components:
         - entry
         - action
         - idempotentReplay
+      type: object
+    MemberReferralBindingView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/MemberReferralBindingView.json
+          format: uri
+          readOnly: true
+          type: string
+        boundAt:
+          description: 绑定时刻;返利的时间窗与次数从此起算
+          format: date-time
+          type: string
+        converted:
+          description: 绑定后是否产生过合格充值或购买
+          type: boolean
+        convertedAt:
+          description: 绑定后第一笔合格充值的付款时刻
+          format: date-time
+          type:
+            - string
+            - "null"
+        earnedUnits:
+          description: 邀请人从这条关系累计获得的返利(credit units,含冻结中)
+          format: int64
+          type: integer
+        id:
+          description: 推荐关系记录 ID
+          type: string
+        invitee:
+          $ref: "#/components/schemas/MemberReferralPartyView"
+          description: 被邀请人(下级)
+        inviter:
+          $ref: "#/components/schemas/MemberReferralPartyView"
+          description: 邀请人(上级)
+        rewardCount:
+          description: 关联的返利评估记录数
+          format: int64
+          type: integer
+        rewardsFrom:
+          description: 从此起算返利的订单付款时刻
+          format: date-time
+          type: string
+        spentUnits:
+          description: 被邀请人绑定期间的累计充值(credit units)
+          format: int64
+          type: integer
+        status:
+          description: bound = 绑定中;unbound = 已解绑
+          enum:
+            - bound
+            - unbound
+          type: string
+        unboundAt:
+          description: 解除绑定的时刻;null = 绑定中
+          format: date-time
+          type:
+            - string
+            - "null"
+        unboundByUserId:
+          description: 解除绑定的操作人用户 ID
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - inviter
+        - invitee
+        - boundAt
+        - rewardsFrom
+        - unboundAt
+        - unboundByUserId
+        - status
+        - converted
+        - convertedAt
+        - spentUnits
+        - earnedUnits
+        - rewardCount
+      type: object
+    MemberReferralPartyView:
+      additionalProperties: false
+      properties:
+        avatarUrl:
+          description: 成员头像读取地址;没有头像时为空
+          type: string
+        displayName:
+          description: 成员展示名;已不在本组织或未填写时为空
+          type: string
+        email:
+          description: 成员邮箱;已不在本组织或未填写时为空
+          type: string
+        userId:
+          description: 成员的用户 ID
+          type: string
+      required:
+        - userId
+        - displayName
+        - email
+        - avatarUrl
+      type: object
+    MemberReferralView:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/MemberReferralView.json
+          format: uri
+          readOnly: true
+          type: string
+        binding:
+          $ref: "#/components/schemas/MemberReferralBindingView"
+          description: 成员的上级绑定关系(邀请人);未绑定时为 null
+        invitees:
+          description: 绑定到此成员的下级列表(按 boundAt 倒序)
+          items:
+            $ref: "#/components/schemas/MemberReferralBindingView"
+          type: array
+        ownCode:
+          description: 成员在本组织的推广后缀;未设置时为 null
+          type:
+            - string
+            - "null"
+        userId:
+          description: 成员的用户 ID
+          type: string
+      required:
+        - userId
+        - ownCode
+        - binding
+        - invitees
       type: object
     MessageSnapshot:
       additionalProperties: false
@@ -24370,6 +24956,291 @@ components:
         - hasPassword
         - skipTlsVerify
       type: object
+    NewAPIGroupSyncConfigPatchBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/NewAPIGroupSyncConfigPatchBody.json
+          format: uri
+          readOnly: true
+          type: string
+        enabled:
+          description: 是否启用定时自动同步
+          type: boolean
+        exclude_auto_group:
+          description: 是否排除上游 auto 分组
+          type: boolean
+        excluded_groups:
+          description: 排除同步的上游分组名列表
+          items:
+            type: string
+          maxItems: 500
+          type: array
+        group_target_provider_group_ids:
+          additionalProperties:
+            items:
+              type: string
+            type: array
+          description: 整体替换按上游分组名单独指定的 CCHP Provider Group ID 列表(最多 500 个上游分组,每个最多 200 个);执行同步时还会把其中已有受管密钥的分组绑定改成指定的值
+          type: object
+        priority:
+          description: 新建受管密钥默认硬优先级(-999..999)
+          format: int64
+          maximum: 999
+          minimum: -999
+          type: integer
+        sync_interval_minutes:
+          description: 定时同步间隔(分钟;5..1440)
+          format: int64
+          maximum: 1440
+          minimum: 5
+          type: integer
+        target_provider_group_ids:
+          description: 新建受管密钥默认绑定的 CCHP Provider Group ID 列表
+          items:
+            type: string
+          maxItems: 200
+          type: array
+        upstream_ratio_auto_detect:
+          description: 新建受管密钥是否启用上游分组倍率自动探测
+          type: boolean
+        weight:
+          description: 新建受管密钥默认权重(0..1000000)
+          format: int64
+          maximum: 1000000
+          minimum: 0
+          type: integer
+      type: object
+    NewAPIGroupSyncConfigView:
+      additionalProperties: false
+      properties:
+        configured:
+          description: 是否已保存过分组同步配置
+          type: boolean
+        enabled:
+          description: 是否启用定时自动同步
+          type: boolean
+        exclude_auto_group:
+          description: 是否排除上游 auto 分组(默认 true)
+          type: boolean
+        excluded_groups:
+          description: 排除同步的上游分组名列表
+          items:
+            type: string
+          type: array
+        group_target_provider_group_ids:
+          additionalProperties:
+            items:
+              type: string
+            type: array
+          description: 按上游分组名单独指定的 CCHP Provider Group ID 列表;没有单独指定的上游分组使用 target_provider_group_ids
+          type: object
+        last_sync_error:
+          description: 最近一次同步错误摘要
+          type: string
+        last_sync_status:
+          description: 最近一次同步状态
+          enum:
+            - ""
+            - ok
+            - partial
+            - error
+          type: string
+        last_sync_summary:
+          description: 最近一次同步结果摘要 JSON
+        last_synced_at:
+          description: 最近一次同步时间
+          format: date-time
+          type: string
+        managed_key_count:
+          description: 当前未吊销的受管密钥数量
+          format: int64
+          minimum: 0
+          type: integer
+        priority:
+          description: 新建受管密钥默认硬优先级(-999..999)
+          format: int64
+          maximum: 999
+          minimum: -999
+          type: integer
+        provider_id:
+          description: Provider ID
+          type: string
+        sync_interval_minutes:
+          description: 定时同步间隔(分钟;默认 360 即 6 小时,范围 5..1440)
+          format: int64
+          maximum: 1440
+          minimum: 5
+          type: integer
+        target_provider_group_ids:
+          description: 新建受管密钥默认绑定的 CCHP Provider Group ID 列表
+          items:
+            type: string
+          type: array
+        upstream_ratio_auto_detect:
+          description: 新建受管密钥是否启用上游分组倍率自动探测
+          type: boolean
+        weight:
+          description: 新建受管密钥默认权重(0..1000000)
+          format: int64
+          maximum: 1000000
+          minimum: 0
+          type: integer
+      required:
+        - provider_id
+        - configured
+        - enabled
+        - exclude_auto_group
+        - excluded_groups
+        - target_provider_group_ids
+        - group_target_provider_group_ids
+        - sync_interval_minutes
+        - priority
+        - weight
+        - upstream_ratio_auto_detect
+        - managed_key_count
+      type: object
+    NewAPIGroupSyncRunGroupView:
+      additionalProperties: false
+      properties:
+        error:
+          description: 脱敏错误说明
+          type: string
+        group:
+          description: 上游分组名
+          type: string
+        key_id:
+          description: 关联的 CCHP Provider Key ID
+          type: string
+        model_count:
+          description: 模型白名单条目数
+          format: int64
+          type: integer
+        provider_group_ids:
+          description: 密钥绑定(或将要绑定)的 CCHP Provider Group ID 列表
+          items:
+            type: string
+          type: array
+        reason:
+          description: 跳过、吊销或失败原因码
+          type: string
+        state:
+          description: 进度:pending = 等待处理;creating_token / token_created = 创建上游令牌;reading_models = 确定协议端点并读取模型;saving_key = 写入密钥;created = 已创建;skipped = 已有受管密钥;rebound = 已有受管密钥,按请求改了分组绑定;revoked = 已吊销;failed = 失败
+          enum:
+            - pending
+            - creating_token
+            - token_created
+            - reading_models
+            - saving_key
+            - created
+            - skipped
+            - rebound
+            - revoked
+            - failed
+          type: string
+      required:
+        - group
+        - state
+        - provider_group_ids
+      type: object
+    NewAPIGroupSyncRunOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/NewAPIGroupSyncRunOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        run:
+          $ref: "#/components/schemas/NewAPIGroupSyncRunView"
+          description: 同步的进度与结果
+      required:
+        - run
+      type: object
+    NewAPIGroupSyncRunView:
+      additionalProperties: false
+      properties:
+        completed_at:
+          description: 结束时间
+          format: date-time
+          type: string
+        created_at:
+          description: 发起时间
+          format: date-time
+          type: string
+        failure_message:
+          description: status=failed 的说明(已去除凭据)
+          type: string
+        failure_reason:
+          description: status=failed 的原因码
+          type: string
+        finished_groups:
+          description: 已处理完的项数
+          format: int64
+          minimum: 0
+          type: integer
+        groups:
+          description: 按处理顺序的逐分组进度
+          items:
+            $ref: "#/components/schemas/NewAPIGroupSyncRunGroupView"
+          type: array
+        id:
+          description: 同步 ID
+          type: string
+        provider_id:
+          description: Provider ID
+          type: string
+        stage:
+          description: 当前阶段
+          enum:
+            - queued
+            - discovering
+            - creating_tokens
+            - creating_keys
+            - revoking
+            - finished
+          type: string
+        started_at:
+          description: 开始执行的时间
+          format: date-time
+          type: string
+        status:
+          description: queued = 等待执行;running = 执行中;completed = 已完成对账(可能有失败的分组);failed = 没有完成对账
+          enum:
+            - queued
+            - running
+            - completed
+            - failed
+          type: string
+        summary:
+          $ref: "#/components/schemas/RunNewAPIGroupSyncSummaryView"
+          description: 对账结果摘要;没有完成对账时缺省
+        total_groups:
+          description: 要处理的项数(读取上游分组之后才有)
+          format: int64
+          minimum: 0
+          type: integer
+        trigger:
+          description: manual = 管理员发起;scheduled = 定时同步
+          enum:
+            - manual
+            - scheduled
+          type: string
+      required:
+        - id
+        - provider_id
+        - trigger
+        - status
+        - stage
+        - total_groups
+        - finished_groups
+        - groups
+        - created_at
+      type: object
     NodeBasicInfoView:
       additionalProperties: false
       properties:
@@ -26439,6 +27310,24 @@ components:
         - usage_count
         - request_log_count
       type: object
+    PreviewClientDefinitionIconInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/PreviewClientDefinitionIconInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        website:
+          description: 客户端官网地址(http 或 https URL)
+          maxLength: 2048
+          minLength: 1
+          type: string
+      required:
+        - website
+      type: object
     PreviewEntity:
       additionalProperties: false
       properties:
@@ -26579,6 +27468,102 @@ components:
         - whitelist
         - redirects
       type: object
+    PreviewNewAPIEndpointToCreateView:
+      additionalProperties: false
+      properties:
+        base_url:
+          description: 自动创建时使用的规范 base_url
+          type: string
+        name:
+          description: 自动创建时的默认端点名称
+          type: string
+        operations:
+          description: 将绑定的 SDK Catalog operations
+          items:
+            type: string
+          type: array
+        protocol:
+          description: 缺失的规范协议
+          enum:
+            - openai
+            - openai_responses
+            - anthropic
+            - gemini
+          type: string
+      required:
+        - protocol
+        - name
+        - base_url
+        - operations
+      type: object
+    PreviewNewAPIGroupView:
+      additionalProperties: false
+      properties:
+        already_managed:
+          description: 该分组是否已有未吊销的受管 CCHP 密钥
+          type: boolean
+        description:
+          description: 上游分组说明
+          type: string
+        detected_protocols:
+          description: 映射到 CCHP 的规范协议列表(openai / openai_responses / anthropic / gemini)
+          items:
+            type: string
+          type: array
+        excluded:
+          description: 按当前排除规则是否跳过创建
+          type: boolean
+        is_auto:
+          description: 是否为 auto 分组
+          type: boolean
+        managed_key_id:
+          description: 已有受管 CCHP 密钥的 ID
+          type: string
+        missing_protocols:
+          description: 供应商当前缺失、执行同步时将自动创建的协议
+          items:
+            type: string
+          type: array
+        model_count:
+          description: 发现的可用模型数量
+          format: int64
+          minimum: 0
+          type: integer
+        name:
+          description: 上游分组名
+          type: string
+        provider_group_ids:
+          description: 密钥的 CCHP Provider Group ID 列表:已有受管密钥时是密钥现在的绑定,否则是执行后会绑定的
+          items:
+            type: string
+          type: array
+        provider_groups_customized:
+          description: 是否为这个上游分组单独指定了供应商分组
+          type: boolean
+        ratio:
+          description: 分组数值倍率(auto 分组省略)
+          format: double
+          type: number
+        ratio_raw:
+          description: 上游原始倍率文本
+          type: string
+        supported_endpoint_types:
+          description: New API /api/pricing 声明的端点协议类型
+          items:
+            type: string
+          type: array
+      required:
+        - name
+        - is_auto
+        - excluded
+        - model_count
+        - supported_endpoint_types
+        - detected_protocols
+        - missing_protocols
+        - already_managed
+        - provider_group_ids
+        - provider_groups_customized
+      type: object
     PreviewProviderModelsInputBody:
       additionalProperties: false
       properties:
@@ -26630,6 +27615,64 @@ components:
         - models
         - baseUrl
         - source
+      type: object
+    PreviewProviderNewAPIGroupSyncInputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/PreviewProviderNewAPIGroupSyncInputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        exclude_auto_group:
+          description: 预览用:是否排除上游 auto 分组(省略时沿用已保存配置或默认 true)
+          type: boolean
+        excluded_groups:
+          description: 预览用:排除的上游分组名列表(省略时沿用已保存配置)
+          items:
+            type: string
+          maxItems: 500
+          type: array
+      type: object
+    PreviewProviderNewAPIGroupSyncOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/PreviewProviderNewAPIGroupSyncOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        canonical_base_url:
+          description: 自动创建缺失协议端点时使用的规范 base_url
+          type: string
+        groups:
+          description: 上游可用分组列表
+          items:
+            $ref: "#/components/schemas/PreviewNewAPIGroupView"
+          type: array
+        managed_key_count:
+          description: 当前受管密钥总数
+          format: int64
+          minimum: 0
+          type: integer
+        missing_endpoints:
+          description: 将自动创建的缺失协议端点
+          items:
+            $ref: "#/components/schemas/PreviewNewAPIEndpointToCreateView"
+          type: array
+        pricing_available:
+          description: 上游 /api/pricing 是否可用
+          type: boolean
+      required:
+        - pricing_available
+        - canonical_base_url
+        - groups
+        - missing_endpoints
+        - managed_key_count
       type: object
     PreviewRedeemForMemberInputBody:
       additionalProperties: false
@@ -30378,6 +31421,13 @@ components:
         upstream_balance_paused_at:
           description: 因上游余额低于下限暂停调度的时间(RFC3339;未暂停为空)
           type: string
+        upstream_managed_group:
+          description: New API 分组自动同步受管的上游分组名;手工创建的密钥省略
+          type: string
+        upstream_managed_token_id:
+          description: New API 分组自动同步创建的上游令牌 ID;手工创建的密钥省略
+          format: int64
+          type: integer
         weight:
           description: 同优先级内权重
           format: int64
@@ -30512,6 +31562,25 @@ components:
         - name
         - status
         - costMultiplierPpm
+      type: object
+    ProviderNewAPIGroupSyncConfigOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/ProviderNewAPIGroupSyncConfigOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        active_run:
+          $ref: "#/components/schemas/NewAPIGroupSyncRunView"
+          description: 未结束的同步;没有时缺省
+        config:
+          $ref: "#/components/schemas/NewAPIGroupSyncConfigView"
+          description: New API 分组同步配置、最近状态与受管密钥数
+      required:
+        - config
       type: object
     ProviderNewKeyUpstreamOutputBody:
       additionalProperties: false
@@ -30711,7 +31780,7 @@ components:
           readOnly: true
           type: string
         bucketSeconds:
-          description: 时间桶宽度(秒):24h 为 1800,72h 为 7200
+          description: 时间桶宽度(秒):24h 为 900,72h 为 7200
           format: int64
           type: integer
         generatedAt:
@@ -31342,8 +32411,9 @@ components:
           minimum: 0
           type: integer
         mode:
-          description: 窗口模式:rolling = 滚动，逐个请求精确计数最近一个窗口长度内的用量(credit1m 的窗口长度是 30 天);calendar = 日历对齐(按 timezone 的日 / 周一 / 月 1 号重置,credit1m 是日历月);aligned = 5 小时按 Unix 时间整除对齐;anchored = 5 小时从窗口内首次使用起算;cycle = 从 anchorAt 起按窗口长度连续切分(5 小时 / 1 天 / 1 周按固定时长,credit1m 按日历月，短月份取当月最后一天),与按订阅日计费的上游窗口重合;total = 累计(只用于 creditTotal)。策略没有某个维度的规则时按系统设置 quota.window.mode.*(默认 rolling;1 天、1 周、1 月默认按 quota.rolling_cf.window_kinds 两段估算，计数桶按 Unix 时间整除窗口长度对齐，月是 30 天;fixed 为 UTC 日、周一、月 1 日重置,5 小时同 aligned)
+          description: 窗口模式:default = 保留组织默认窗口配置(仅附带 resetAfter 清零水印);rolling = 滚动，逐个请求精确计数最近一个窗口长度内的用量(credit1m 的窗口长度是 30 天);calendar = 日历对齐(按 timezone 的日 / 周一 / 月 1 号重置,credit1m 是日历月);aligned = 5 小时按 Unix 时间整除对齐;anchored = 5 小时从窗口内首次使用起算;cycle = 从 anchorAt 起按窗口长度连续切分(5 小时 / 1 天 / 1 周按固定时长,credit1m 按日历月，短月份取当月最后一天),与按订阅日计费的上游窗口重合;total = 累计(只用于 creditTotal)。策略没有某个维度的规则时按系统设置 quota.window.mode.*(默认 rolling;1 天、1 周、1 月默认按 quota.rolling_cf.window_kinds 两段估算，计数桶按 Unix 时间整除窗口长度对齐，月是 30 天;fixed 为 UTC 日、周一、月 1 日重置,5 小时同 aligned)
           enum:
+            - default
             - rolling
             - calendar
             - aligned
@@ -31397,6 +32467,10 @@ components:
           description: 余量:上限减去当前计数,不小于 0;limit = 0 时为 0
           format: int64
           type: integer
+        resetAfter:
+          description: 当前窗口内生效中的手动清零水印时刻(仅计入此时刻之后的用量);未手动清零或已滚出当前窗口时缺省
+          format: date-time
+          type: string
         resetAt:
           description: 计数整体清零的时刻:fixed 与 anchored 等于 windowEnd;rolling 与 rolling_cf 随时间逐步释放，缺省
           format: date-time
@@ -34640,6 +35714,155 @@ components:
       required:
         - ruleId
         - target
+      type: object
+    RunNewAPIEndpointResultView:
+      additionalProperties: false
+      properties:
+        base_url:
+          description: 端点 base_url
+          type: string
+        endpoint_id:
+          description: 新建 Endpoint ID
+          type: string
+        name:
+          description: 端点名称
+          type: string
+        operations:
+          description: 绑定的 SDK Catalog operations
+          items:
+            type: string
+          type: array
+        protocol:
+          description: 自动创建的规范协议
+          type: string
+      required:
+        - protocol
+        - endpoint_id
+        - name
+        - base_url
+        - operations
+      type: object
+    RunNewAPIGroupResultView:
+      additionalProperties: false
+      properties:
+        action:
+          description: 该分组执行的动作
+          enum:
+            - created
+            - revoked
+            - skipped
+            - failed
+          type: string
+        bound_endpoint_ids:
+          description: 绑定的端点 ID 列表
+          items:
+            type: string
+          type: array
+        error:
+          description: 脱敏错误说明
+          type: string
+        group:
+          description: 上游分组名
+          type: string
+        key_id:
+          description: 关联的 CCHP Provider Key ID
+          type: string
+        model_count:
+          description: 写入的模型白名单条目数
+          format: int64
+          type: integer
+        provider_group_ids:
+          description: 密钥绑定的 CCHP Provider Group ID 列表
+          items:
+            type: string
+          type: array
+        reason:
+          description: 跳过、吊销或失败原因码;skipped 的 provider_groups_updated 表示已有受管密钥、按请求改了它的分组绑定
+          type: string
+        token_id:
+          description: 关联的上游 New API Token ID
+          format: int64
+          type: integer
+      required:
+        - group
+        - action
+      type: object
+    RunNewAPIGroupSyncSummaryView:
+      additionalProperties: false
+      properties:
+        created_count:
+          description: 本次新建受管密钥数
+          format: int64
+          minimum: 0
+          type: integer
+        created_endpoints:
+          description: 本次自动创建的缺失协议端点
+          items:
+            $ref: "#/components/schemas/RunNewAPIEndpointResultView"
+          type: array
+        error:
+          description: 全局或部分失败的错误摘要
+          type: string
+        failed_count:
+          description: 本次失败分组数
+          format: int64
+          minimum: 0
+          type: integer
+        groups:
+          description: 逐分组结果
+          items:
+            $ref: "#/components/schemas/RunNewAPIGroupResultView"
+          type: array
+        revoked_count:
+          description: 本次吊销过期受管密钥数
+          format: int64
+          minimum: 0
+          type: integer
+        skipped_count:
+          description: 本次跳过(已存在受管密钥)分组数
+          format: int64
+          minimum: 0
+          type: integer
+        status:
+          description: 本次同步状态
+          enum:
+            - ok
+            - partial
+            - error
+          type: string
+        synced_at:
+          description: 同步完成时间
+          format: date-time
+          type: string
+      required:
+        - status
+        - synced_at
+        - created_endpoints
+        - created_count
+        - revoked_count
+        - skipped_count
+        - failed_count
+        - groups
+      type: object
+    RunProviderNewAPIGroupSyncOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/RunProviderNewAPIGroupSyncOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        config:
+          $ref: "#/components/schemas/NewAPIGroupSyncConfigView"
+          description: 保存并更新状态后的同步配置
+        summary:
+          $ref: "#/components/schemas/RunNewAPIGroupSyncSummaryView"
+          description: 本次运行结果摘要
+      required:
+        - summary
+        - config
       type: object
     RunView:
       additionalProperties: false
@@ -38053,8 +39276,11 @@ components:
         body:
           description: Release 说明(Markdown 原文)
           type: string
+        breaking:
+          description: 是否包含破坏性变更
+          type: boolean
         htmlUrl:
-          description: Release 页面地址
+          description: 发布日志页面地址
           format: uri
           type: string
         name:
@@ -38067,9 +39293,15 @@ components:
           description: 发布时间
           format: date-time
           type: string
+        summary:
+          description: 发布摘要(官网发布日志提供时给出)
+          type: string
         tagName:
           description: Release 的 git tag
           type: string
+        upgradeRequired:
+          description: 是否需要特别注意升级步骤
+          type: boolean
         version:
           description: 语义化版本(不带 v 前缀)
           type: string
@@ -38115,18 +39347,27 @@ components:
           type: string
         latest:
           $ref: "#/components/schemas/SystemBuildView"
-          description: 渠道上的最新发布构建(无发布或检查失败时省略)
+          description: 渠道上的最新发布构建(无发布、仅官网兜底或检查失败时省略)
         release:
           $ref: "#/components/schemas/SystemReleaseView"
-          description: 最新构建版本 tag 的 GitHub Release(该版本还没有 Release 或读取失败时省略)
+          description: 最新版本的发布日志(该版本还没有发布日志或读取失败时省略)
         releaseErrorReason:
-          description: 读取 GitHub Release 失败的原因类别(不影响 status)
+          description: 读取发布日志源失败的原因类别(不影响 status)
           enum:
             - network
             - unauthorized
             - rate_limited
             - upstream
           type: string
+        releaseNotesUrl:
+          description: 官网发布日志页面地址(对应请求语言)
+          format: uri
+          type: string
+        releases:
+          description: 渠道可见的近期与历史发布日志列表(按版本倒序)
+          items:
+            $ref: "#/components/schemas/SystemReleaseView"
+          type: array
         status:
           description: 检查结论
           enum:
@@ -38882,6 +40123,49 @@ components:
         - userId
         - role
         - createdAt
+      type: object
+    TeamProviderGroupView:
+      additionalProperties: false
+      properties:
+        canOverrideDisabled:
+          description: 当前调用者是否允许在本团队覆盖上级的停用状态(仅组织管理员或停用发生在当前管理员所辖子树内时为 true)
+          type: boolean
+        costMultiplierPpm:
+          description: 分组自身的出站倍率(PPM,1_000_000 = 1.0x)
+          format: int64
+          type: integer
+        description:
+          description: 用户可见的分组描述
+          type: string
+        disabledBy:
+          description: 被上级停用时的停用层级(organization 或 team);未被上级停用时省略
+          enum:
+            - organization
+            - team
+          type: string
+        groupTag:
+          description: 稳定分组标签
+          type: string
+        id:
+          type: string
+        inheritedEnabled:
+          description: 本组织与上级团队合并后的默认可用状态
+          type: boolean
+        inheritedRateMultiplierPpm:
+          description: 本组织与上级团队对该分组设置的额外倍率之积(PPM;未设置为 1_000_000)
+          format: int64
+          type: integer
+        name:
+          description: 分组展示名
+          type: string
+      required:
+        - id
+        - name
+        - groupTag
+        - costMultiplierPpm
+        - inheritedEnabled
+        - inheritedRateMultiplierPpm
+        - canOverrideDisabled
       type: object
     TeamTreeNodeView:
       additionalProperties: false
@@ -39810,6 +41094,32 @@ components:
           type: string
       required:
         - version
+      type: object
+    UpdateMemberReferralBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/UpdateMemberReferralBody.json
+          format: uri
+          readOnly: true
+          type: string
+        inviterUserId:
+          description: 变更后的邀请人用户 ID(须为本组织成员,不能自绑定或形成环形推荐链)
+          maxLength: 128
+          minLength: 1
+          type: string
+        rewardsFrom:
+          description: 调整返利起算时刻(须不早于记录的 boundAt,否则 422 field_invalid)
+          format: date-time
+          type: string
+        status:
+          description: bound = 绑定生效中(清空解绑状态);unbound = 设为已解绑
+          enum:
+            - bound
+            - unbound
+          type: string
       type: object
     UpdateMemberRoleInputBody:
       additionalProperties: false
@@ -45785,6 +47095,7 @@ components:
             - content_blocked
             - content_cooldown
             - org_join_approved
+            - program_update
           type: string
         params:
           additionalProperties: {}
@@ -45793,7 +47104,7 @@ components:
           format: date-time
           type: string
         refId:
-          description: content_blocked 为拦截事件 ID,content_cooldown 为冷却 ID,org_join_approved 为邀请码加入申请 ID
+          description: content_blocked 为拦截事件 ID,content_cooldown 为冷却 ID,org_join_approved 为邀请码加入申请 ID,program_update 为 release:<version>
           type: string
       required:
         - id
@@ -47326,7 +48637,15 @@ components:
         convertedAt:
           format: date-time
           type: string
+        creditedUnits:
+          description: 邀请人已释放入账钱包的返利额度(credit units)
+          format: int64
+          type: integer
         earnedUnits:
+          format: int64
+          type: integer
+        frozenUnits:
+          description: 邀请人当前冻结中、等待释放入账的返利额度(credit units)
           format: int64
           type: integer
         id:
@@ -47335,8 +48654,56 @@ components:
           type: string
         maskedName:
           type: string
+        nextReleaseAt:
+          description: 最早一笔冻结中返利的预计到账时刻
+          format: date-time
+          type: string
+        noRewardReason:
+          description: 当前返现为 0 时的脱敏归因(不含被邀请人隐私、订单号或具体金额)
+          enum:
+            - pending_evaluation
+            - non_qualifying_activity
+            - referral_disabled
+            - before_release
+            - after_window
+            - over_times_limit
+            - zero_reward
+            - one_time_only
+            - rule_ineligible
+            - cancelled
+            - unbound
+            - no_paid_order
+          type: string
+        nonQualifyingSources:
+          description: 被邀请人绑定期间产生但不可计返利的活动来源类别,仅用于避免误显示为未消费
+          items:
+            enum:
+              - checkin
+              - redeem
+              - admin_grant
+              - balance_purchase
+              - usage_only
+            type: string
+          maxItems: 5
+          type: array
         registeredAt:
           format: date-time
+          type: string
+        rewardCount:
+          description: 产生有效返利(冻结中或已入账)的返利笔数
+          format: int64
+          type: integer
+        rewardStatus:
+          description: 服务端按真实返利行与合格支付派生的返现状态:credited=已入账;frozen=冻结中(可同时含已入账部分);pending_evaluation=已有合格支付待返利任务评估;non_qualifying_activity=仅有签到/兑换码/管理员发放/余额购套餐/已有额度消费等不计返利来源;ineligible=已有支付但不满足返利条件;cancelled=返利已作废(订单退款或异常);unbound=已解绑且无有效返利;no_paid_order=暂未产生合格在线支付
+          enum:
+            - credited
+            - frozen
+            - pending_evaluation
+            - non_qualifying_activity
+            - ineligible
+            - cancelled
+            - unbound
+            - no_paid_order
           type: string
         spentUnits:
           format: int64
@@ -50876,7 +52243,7 @@ paths:
         - moderation-events
   /api/account/notifications:
     get:
-      description: 本人在当前组织最近的个人通知(请求被拦截、进入冷却、邀请码加入申请获批)与未读数,最近优先。所有已登录用户可调用。
+      description: 本人在当前组织最近的个人通知(请求被拦截、进入冷却、邀请码加入申请获批;平台管理员另含跨组织共享已读状态的程序更新提示)与未读数,最近优先。所有已登录用户可调用。
       operationId: listUserNotifications
       parameters:
         - explode: false
@@ -54144,6 +55511,55 @@ paths:
       summary: 列举组织成员
       tags:
         - members
+  /api/account/orgs/{orgId}/members/local:
+    post:
+      description: 组织管理员在无需邮件服务的情况下直接创建本地账号并加入当前组织及其默认团队：账号邮箱由管理员确认记为已验证，且默认禁止通过邮箱验证码自助找回密码或验证码登录(忘记密码需联系管理员重置)。可选 require_password_change(默认 true 首次登录强制修改临时密码;false 直接生效为永久密码)与 role(默认 org_user，且必须严格低于调用方组织角色)。门禁：需要本组织 member:invite 与 member_account:set_password 权限、浏览器用户会话、人机验证 member_account.password_set 与十分钟内的近期认证(过期 401 step_up_mfa_required;管理 token 与 CLI/Token 会话 403)。邮箱已存在时返回 409 resource_already_exists(field=email)，不泄露跨组织账号信息。
+      operationId: createOrgLocalMember
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: 人机验证 proof(challenge gate 命中时携带)
+          in: header
+          name: X-CCH-Challenge-Proof
+          schema:
+            description: 人机验证 proof(challenge gate 命中时携带)
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrgLocalMemberInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateOrgLocalMemberOutputBody"
+          description: Created
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 组织管理员直接创建本地成员账号
+      tags:
+        - members
   /api/account/orgs/{orgId}/members/{userId}:
     delete:
       description: 经 outbox remove_member 异步移除成员(worker 内强制 CanRemoveTarget + CheckLastSuperadmin);active 与 suspended 成员均可移除。需要 member:remove 权限(org scope)。
@@ -54825,6 +56241,61 @@ paths:
         - managementBearer: []
         - apiKeySession: []
       summary: 预览调整成员的限额
+      tags:
+        - member-billing
+  /api/account/orgs/{orgId}/members/{userId}/billing/quota/reset:
+    post:
+      description: 在不修改历史 usage_logs 与财务账本的前提下,将成员用户层策略指定信用维度的 resetAfter 推进到当前时刻,使该成员当前窗口用量立即归零并从当前时刻起重新计数;保留原有窗口算法(包括默认 rolling_cf 与自定义 calendar/cycle/aligned/rolling),在下一个窗口周期自动恢复正常边界。若成员仅继承组织成员默认限额(尚无已启用的 user 策略),会自动创建一条零限额的 user 策略承载清零水印。仅影响该成员的 user 与 organization_member 限额,不绕过 user_key、team 或 organization 限额池。需要 Idempotency-Key、quota_policy:write 权限及成员所在层级的限额设置权(平台管理员、组织管理员或成员所在团队及上级团队的团队管理员)。
+      operationId: resetMemberQuotaUsage
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: 成员的用户 ID
+          in: path
+          name: userId
+          required: true
+          schema:
+            description: 成员的用户 ID
+            type: string
+        - description: 幂等键:同一管理员同 key 同请求重放首次结果
+          in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            description: 幂等键:同一管理员同 key 同请求重放首次结果
+            maxLength: 255
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberQuotaUsageResetBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberQuotaUsageResetResultView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 临时清零成员当前窗口的配额用量
       tags:
         - member-billing
   /api/account/orgs/{orgId}/members/{userId}/billing/redeem:
@@ -55519,6 +56990,188 @@ paths:
         - managementBearer: []
         - apiKeySession: []
       summary: 恢复 suspended 组织成员
+      tags:
+        - members
+  /api/account/orgs/{orgId}/members/{userId}/referral:
+    get:
+      description: 返回本组织成员的上级邀请人绑定关系(binding)、绑定到该成员的下级成员列表(invitees,按 boundAt 倒序),以及该成员在本组织的推广后缀(ownCode)。目标须为本组织成员(否则 404)。需要 member:read 权限(org scope)。
+      operationId: getMemberReferral
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: 成员的用户 ID
+          in: path
+          name: userId
+          required: true
+          schema:
+            description: 成员的用户 ID
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberReferralView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 成员的推广绑定与被绑定关系
+      tags:
+        - members
+    post:
+      description: 管理员为本组织成员新增推广绑定关系:direction=inviter 时把 targetUserId 设为当前成员的邀请人;direction=invitee 时把 targetUserId 绑定为当前成员的下级。双方须为本组织成员;禁止自绑定(422 referral_self_use)与环形推荐链(422 referral_cycle);被邀请人已有关系记录时 409 referral_already_bound(可改为编辑或删除)。管理员手动绑定不自动发放一次性注册/绑定奖励,仅从 rewardsFrom(默认当前时刻,不得早于 boundAt,否则 422 field_invalid)起对后续合格订单生效。同事务写 referral_record.create 强审计。需要 member:role:update 权限(org scope)。
+      operationId: createMemberReferral
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: 成员的用户 ID
+          in: path
+          name: userId
+          required: true
+          schema:
+            description: 成员的用户 ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemberReferralBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberReferralBindingView"
+          description: Created
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 新增成员的推广绑定关系
+      tags:
+        - members
+  /api/account/orgs/{orgId}/members/{userId}/referral/{recordId}:
+    delete:
+      description: 管理员删除涉及当前成员(作为邀请人或被邀请人)的本组织推广绑定关系记录,释放被邀请人的唯一绑定约束以便按需重新绑定。历史 referral_rewards 行保持不变且财务事件与冻结返利结算可正常处理。同事务写 referral_record.delete 强审计(记录被删关系快照)。需要 member:role:update 权限(org scope)。
+      operationId: deleteMemberReferral
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: 成员的用户 ID
+          in: path
+          name: userId
+          required: true
+          schema:
+            description: 成员的用户 ID
+            type: string
+        - description: 推荐关系记录 ID
+          in: path
+          name: recordId
+          required: true
+          schema:
+            description: 推荐关系记录 ID
+            minLength: 1
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 删除成员的推广绑定关系
+      tags:
+        - members
+    patch:
+      description: 管理员编辑涉及当前成员(作为邀请人或被邀请人)的本组织推广绑定关系:支持更换邀请人(校验本组织成员、非自绑定、无环,并按新邀请人归属的冻结/已入账返利重算 earnedUnits)、切换绑定/解绑状态(恢复已解绑记录会清空 unboundAt / unboundByUserId)或调整 rewardsFrom(须不早于 boundAt,否则 422 field_invalid)。已有历史 referral_rewards 行保持不变,新邀请人仅对后续产生的返利生效。同事务写 referral_record.update 强审计(记录变更前后快照)。需要 member:role:update 权限(org scope)。
+      operationId: updateMemberReferral
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: 成员的用户 ID
+          in: path
+          name: userId
+          required: true
+          schema:
+            description: 成员的用户 ID
+            type: string
+        - description: 推荐关系记录 ID
+          in: path
+          name: recordId
+          required: true
+          schema:
+            description: 推荐关系记录 ID
+            minLength: 1
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberReferralBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberReferralBindingView"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 编辑成员的推广绑定关系
       tags:
         - members
   /api/account/orgs/{orgId}/members/{userId}/role:
@@ -57671,12 +59324,12 @@ paths:
           schema:
             description: 名称 / slug / 备注大小写不敏感包含搜索
             type: string
-        - description: 排序:名称(不分大小写)、未删除的密钥数或余额合计(美元;不限额最高,没有美元余额的排在最后)× 升降序,同值按 ID 排定先后;balance_asc 是余额最低的在前;省略时按 ID 升序
+        - description: 排序:名称(不分大小写)、未删除的密钥数、余额合计(美元;不限额最高,没有美元余额的排在最后)或近 7 天用量(花费、同花费按调用数)× 升降序,同值按 ID 排定先后;balance_asc 是余额最低的在前;省略时按 ID 升序
           explode: false
           in: query
           name: sort
           schema:
-            description: 排序:名称(不分大小写)、未删除的密钥数或余额合计(美元;不限额最高,没有美元余额的排在最后)× 升降序,同值按 ID 排定先后;balance_asc 是余额最低的在前;省略时按 ID 升序
+            description: 排序:名称(不分大小写)、未删除的密钥数、余额合计(美元;不限额最高,没有美元余额的排在最后)或近 7 天用量(花费、同花费按调用数)× 升降序,同值按 ID 排定先后;balance_asc 是余额最低的在前;省略时按 ID 升序
             enum:
               - name_asc
               - name_desc
@@ -57684,6 +59337,8 @@ paths:
               - keyCount_desc
               - balance_asc
               - balance_desc
+              - usage7d_asc
+              - usage7d_desc
             type: string
         - description: 每页条数;省略时不分页(全量,兼容既有消费方)
           explode: false
@@ -58607,18 +60262,19 @@ paths:
           schema:
             description: 查看者的 IANA 时区(「今日」的起点);省略为 UTC
             type: string
-        - description: 排序:scheduling = 调度顺序(优先级、名称);name = 供应商名称(供应商内按调度顺序);health = 健康度(升序最差在前);todayRequests = 今日请求数
+        - description: 排序:scheduling = 调度顺序(优先级、名称);name = 供应商名称(供应商内按调度顺序);health = 健康度(升序最差在前);todayRequests = 今日请求数;usage7d = 近 7 天用量(花费、同花费按调用数)
           explode: false
           in: query
           name: sort
           schema:
             default: scheduling
-            description: 排序:scheduling = 调度顺序(优先级、名称);name = 供应商名称(供应商内按调度顺序);health = 健康度(升序最差在前);todayRequests = 今日请求数
+            description: 排序:scheduling = 调度顺序(优先级、名称);name = 供应商名称(供应商内按调度顺序);health = 健康度(升序最差在前);todayRequests = 今日请求数;usage7d = 近 7 天用量(花费、同花费按调用数)
             enum:
               - scheduling
               - name
               - health
               - todayRequests
+              - usage7d
             type: string
         - description: 排序方向
           explode: false
@@ -59959,6 +61615,52 @@ paths:
         - managementBearer: []
         - apiKeySession: []
       summary: 新密钥的成本倍率自动探测状态
+      tags:
+        - provider-keys
+  /api/account/orgs/{orgId}/providers/{providerId}/keys/upstream/lookup:
+    post:
+      description: 根据粘贴的 1..50 把未保存上游 API Key 只读查询 New API 令牌元数据(分组名、令牌名与推荐名称),绝不创建资源、绝不写库、绝不记录原始密钥。配置了管理令牌时优先精确查询 /api/token/search(1..5 把)或分页列举 /api/token/(并按需读 /api/user/self 补全默认分组);未配置管理令牌的 New API 站点在单把密钥且满足冷却限流预算时尽力读 /api/usage/token/ 并返回 hint=new_api_management_token_missing;非 New API 上游静默返回 found=false。需要 provider_key:write 权限(org scope)。
+      operationId: lookupProviderKeysUpstream
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LookupProviderKeysUpstreamInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LookupProviderKeysUpstreamOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 只读自动识别未保存 Provider Key 的上游元数据
       tags:
         - provider-keys
   /api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}:
@@ -61584,6 +63286,276 @@ paths:
       summary: 测试供应商的出站代理
       tags:
         - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync:
+    get:
+      description: 返回供应商的 New API 分组自动同步配置、最近一次同步状态/摘要、当前受管密钥数量与未结束的同步(不发起出站请求)。需要 provider:read 权限(org scope)。
+      operationId: getProviderNewAPIGroupSync
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNewAPIGroupSyncConfigOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 读取供应商的 New API 分组同步配置与状态
+      tags:
+        - providers
+    patch:
+      description: 部分更新 New API 分组自动同步配置(不立即触发对账),支持启用/停用定时同步、修改排除分组、目标绑定分组、同步间隔与密钥默认参数。同 tx 强审计 provider.new_api_group_sync.update。需要 provider:write 与 provider_key:write 权限(org scope)。
+      operationId: updateProviderNewAPIGroupSync
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewAPIGroupSyncConfigPatchBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNewAPIGroupSyncConfigOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 更新或启停供应商的 New API 分组自动同步配置
+      tags:
+        - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/preview:
+    post:
+      description: 只读拉取 New API 上游 /api/user/self/groups(+ /api/pricing 或 /api/user/models),返回各分组倍率、说明、模型数、所需协议、将自动创建的缺失协议端点以及在 CCHP 中的受管状态(绝不创建令牌、端点或密钥)。需要 provider:read 权限(org scope)。
+      operationId: previewProviderNewAPIGroupSync
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewProviderNewAPIGroupSyncInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreviewProviderNewAPIGroupSyncOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 预览 New API 上游可用分组与缺失协议端点
+      tags:
+        - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/run:
+    post:
+      description: 保存 New API 分组同步配置并立即执行一次端到端对账:为每个待同步分组在 New API 上创建全新独立令牌(expired_time=-1、unlimited_quota=true),按需自动创建缺失协议端点(OpenAI / OpenAI Responses / Anthropic / Google Gemini),拉取模型白名单并创建受管 CCHP 密钥,同时吊销上游已消失分组的受管密钥(绝不触碰手工密钥;上游查询失败时不吊销任何密钥)。首次执行未显式传 enabled 时默认开启定时自动同步。在请求里执行完才返回;需要后台执行与实时进度时用 POST .../new-api-group-sync/runs。供应商有未结束的同步时 409。需要 provider:write 与 provider_key:write 权限(org scope)。
+      operationId: runProviderNewAPIGroupSync
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewAPIGroupSyncConfigPatchBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunProviderNewAPIGroupSyncOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 一键按 New API 分组创建全部密钥并保存自动同步配置
+      tags:
+        - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs:
+    post:
+      description: 创建一次 New API 分组同步并排队,立即返回;后台任务按与 .../new-api-group-sync/run 相同的步骤执行,关闭页面不影响执行,进度见 GET .../new-api-group-sync/runs/{runId}。请求体是执行时保存的配置改动;group_target_provider_group_ids 按上游分组单独指定密钥的供应商分组,已有受管密钥的上游分组会把密钥的绑定改成指定的值。首次执行没有传 enabled 时默认开启定时自动同步。没有配置管理令牌时 422,供应商有未结束的同步时 409。写 provider.new_api_group_sync.run 审计。需要 provider:write 与 provider_key:write 权限(org scope)。
+      operationId: createProviderNewAPIGroupSyncRun
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewAPIGroupSyncConfigPatchBody"
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewAPIGroupSyncRunOutputBody"
+          description: Accepted
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 后台执行 New API 一键创建密钥与同步
+      tags:
+        - providers
+  /api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs/{runId}:
+    get:
+      description: 返回一次 New API 分组同步的状态、阶段、逐分组进度、结果摘要或失败原因(不发起出站请求)。已结束的同步保留 30 天;没有任何改动的定时同步不留记录。需要 provider:read 权限(org scope)。
+      operationId: getProviderNewAPIGroupSyncRun
+      parameters:
+        - description: 组织 ID
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID
+            type: string
+        - description: Provider ID
+          in: path
+          name: providerId
+          required: true
+          schema:
+            description: Provider ID
+            type: string
+        - description: 同步 ID
+          in: path
+          name: runId
+          required: true
+          schema:
+            description: 同步 ID
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewAPIGroupSyncRunOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 读取一次 New API 分组同步的进度与结果
+      tags:
+        - providers
   /api/account/orgs/{orgId}/providers/{providerId}/test:
     post:
       description: 对指定(或首个 active)endpoint 的 base_url 做 GET reachability probe，不选择 Catalog operation、不构造 wire body、不读取 provider key。返回状态 + 延迟 + 分类，出站经 SSRF 安全校验。需要 provider:test 权限(org scope,限流复用 5/min/user)。
@@ -62746,6 +64718,46 @@ paths:
         - managementBearer: []
         - apiKeySession: []
       summary: 变更团队成员角色
+      tags:
+        - team
+  /api/account/orgs/{orgId}/teams/{teamId}/provider-groups:
+    get:
+      description: 返回用于团队供应商分组开关与额外倍率配置的脱敏分组列表(不含成员数、路由策略或供应商信息),同时标出上级是否停用以及当前调用者能否覆盖上级停用。需要 team:read 权限(org scope),不要求 provider:read。
+      operationId: listTeamProviderGroups
+      parameters:
+        - description: 组织 ID(与 Identity 一致)
+          in: path
+          name: orgId
+          required: true
+          schema:
+            description: 组织 ID(与 Identity 一致)
+            type: string
+        - description: 团队 ID
+          in: path
+          name: teamId
+          required: true
+          schema:
+            description: 团队 ID
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListTeamProviderGroupsOutputBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 列举团队可配置的脱敏供应商分组
       tags:
         - team
   /api/account/passkeys:
@@ -65995,6 +68007,13 @@ paths:
           schema:
             description: 是否包含网关未匹配到端点的 GET 404 请求([10002] no API endpoint matches GET ...);省略时默认隐藏,显式搜索(q / idQuery)或筛选 404 / RESOURCE_NOT_FOUND / rejected 时自动包含
             type: boolean
+        - description: 是否包含未指定请求模型(requestedModel 为空)的请求;省略时默认隐藏,显式搜索(q / idQuery)时自动包含
+          explode: false
+          in: query
+          name: includeEmptyModel
+          schema:
+            description: 是否包含未指定请求模型(requestedModel 为空)的请求;省略时默认隐藏,显式搜索(q / idQuery)时自动包含
+            type: boolean
         - description: 排序
           explode: false
           in: query
@@ -66441,6 +68460,13 @@ paths:
           name: includeUnmatchedGet
           schema:
             description: 是否包含网关未匹配到端点的 GET 404 请求([10002] no API endpoint matches GET ...);省略时默认隐藏,显式搜索(q / idQuery)或筛选 404 / RESOURCE_NOT_FOUND / rejected 时自动包含
+            type: boolean
+        - description: 是否包含未指定请求模型(requestedModel 为空)的请求;省略时默认隐藏,显式搜索(q / idQuery)时自动包含
+          explode: false
+          in: query
+          name: includeEmptyModel
+          schema:
+            description: 是否包含未指定请求模型(requestedModel 为空)的请求;省略时默认隐藏,显式搜索(q / idQuery)时自动包含
             type: boolean
       responses:
         "202":
@@ -69287,6 +71313,37 @@ paths:
       summary: 新建客户端定义
       tags:
         - client-definitions
+  /api/admin/client-definitions/icon/fetch:
+    post:
+      description: "经出站安全客户端读取官网首页的 <link rel=\"icon\">(无声明时回退 /favicon.ico)，校验 MIME(png/webp/svg+xml/x-icon/jpeg)与解码大小(<=64 KiB)后返回 data: URL(不落库)，供新建与编辑表单自动抓取与预览。需要 operations:write(system scope)。"
+      operationId: previewClientDefinitionIcon
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewClientDefinitionIconInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FetchedIcon"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/CchpErrorModel"
+          description: Error
+      security:
+        - userSessionCookie: []
+        - bearerUserSession: []
+        - managementBearer: []
+        - apiKeySession: []
+      summary: 无状态从官网预览抓取客户端图标
+      tags:
+        - client-definitions
   /api/admin/client-definitions/identify:
     post:
       description: 输入原始请求或请求记录 ID(读取请求归档)，可选一份未保存的定义草稿(按其 sortOrder 参与)，返回命中的客户端定义以及按识别顺序每条定义的匹配结果与叶子条件 Trace。需要 operations:read(system scope)。
@@ -69455,7 +71512,7 @@ paths:
         - client-definitions
   /api/admin/client-definitions/{id}/icon/fetch:
     post:
-      description: "经出站安全客户端读取官网首页的 <link rel=\"icon\">(无声明时回退 /favicon.ico)，校验 MIME(png/webp/svg+xml)与解码大小(<=64 KiB)后保存为 data: URL。需要 operations:write(system scope)。"
+      description: "经出站安全客户端读取官网首页的 <link rel=\"icon\">(无声明时回退 /favicon.ico)，校验 MIME(png/webp/svg+xml/x-icon/jpeg)与解码大小(<=64 KiB)后保存为 data: URL。需要 operations:write(system scope)。"
       operationId: fetchClientDefinitionIcon
       parameters:
         - description: 客户端定义 ID
@@ -69494,7 +71551,7 @@ paths:
         - client-definitions
   /api/admin/client-definitions/{id}/restore-preset:
     post:
-      description: 将一条 builtIn 客户端定义的名称、说明、网站、分类与识别条件恢复为预置内容，保留启用状态、识别顺序与图标。需要 operations:write(system scope)。
+      description: 将一条 builtIn 客户端定义的名称、说明、网站、图标、分类与识别条件恢复为预置内容，保留启用状态与识别顺序。需要 operations:write(system scope)。
       operationId: restoreClientDefinitionPreset
       parameters:
         - description: 内置预置客户端定义 ID
@@ -70862,6 +72919,7 @@ paths:
               - login_code
               - email_change_code
               - low_balance
+              - balance_exhausted
               - package_expiry
               - account_suspended
               - org_invitation
@@ -70954,6 +73012,7 @@ paths:
               - login_code
               - email_change_code
               - low_balance
+              - balance_exhausted
               - package_expiry
               - account_suspended
               - org_invitation
@@ -76658,6 +78717,14 @@ paths:
           schema:
             description: 绕过缓存立即读取发布源(每个用户每分钟最多 5 次)
             type: boolean
+        - description: 界面语言(如 zh-CN、en-US),用于选择对应语言的发布日志,缺省或不支持时回退到默认语言
+          explode: false
+          in: query
+          name: locale
+          schema:
+            description: 界面语言(如 zh-CN、en-US),用于选择对应语言的发布日志,缺省或不支持时回退到默认语言
+            maxLength: 32
+            type: string
       responses:
         "200":
           content:
@@ -77075,7 +79142,7 @@ paths:
       security:
         - csrfTokenHeader: []
           userSessionCookie: []
-      summary: 创建带临时密码的用户
+      summary: 创建本地用户
       tags:
         - admin-users
   /api/admin/users/{userId}:
@@ -80334,13 +82401,13 @@ paths:
       description: 匿名端点。按 status_page.* 设置投影公开组织的供应商分组,每个分组列出最近 24 小时请求量最高的模型及其逐时间桶的成功率、首字时间、输出速度与请求数。只读预聚合,不含供应商、端点或密钥信息。status_page.enabled 关闭或没有公开组织时返回 404。
       operationId: getStatusGroups
       parameters:
-        - description: 历史窗口:24h(30 分钟一桶)或 72h(2 小时一桶)
+        - description: 历史窗口:24h(15 分钟一桶)或 72h(2 小时一桶)
           explode: false
           in: query
           name: window
           schema:
             default: 24h
-            description: 历史窗口:24h(30 分钟一桶)或 72h(2 小时一桶)
+            description: 历史窗口:24h(15 分钟一桶)或 72h(2 小时一桶)
             enum:
               - 24h
               - 72h
@@ -80404,13 +82471,13 @@ paths:
             maxLength: 64
             minLength: 1
             type: string
-        - description: 历史窗口:24h(30 分钟一桶)或 72h(2 小时一桶)
+        - description: 历史窗口:24h(15 分钟一桶)或 72h(2 小时一桶)
           explode: false
           in: query
           name: window
           schema:
             default: 24h
-            description: 历史窗口:24h(30 分钟一桶)或 72h(2 小时一桶)
+            description: 历史窗口:24h(15 分钟一桶)或 72h(2 小时一桶)
             enum:
               - 24h
               - 72h
@@ -81178,7 +83245,9 @@ paths:
                           type: string
                         id:
                           description: The event ID.
-                          type: integer
+                          oneOf:
+                            - type: integer
+                            - type: string
                         retry:
                           description: The retry time in milliseconds.
                           type: integer
@@ -81196,7 +83265,9 @@ paths:
                           type: string
                         id:
                           description: The event ID.
-                          type: integer
+                          oneOf:
+                            - type: integer
+                            - type: string
                         retry:
                           description: The retry time in milliseconds.
                           type: integer
@@ -81214,7 +83285,9 @@ paths:
                           type: string
                         id:
                           description: The event ID.
-                          type: integer
+                          oneOf:
+                            - type: integer
+                            - type: string
                         retry:
                           description: The retry time in milliseconds.
                           type: integer

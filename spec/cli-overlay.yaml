@@ -127,6 +127,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'identityId')]", update: {x-cli-description: "Linked identity ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'ids')]", update: {x-cli-description: "IDs to read."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'inApp')]", update: {x-cli-description: "In-app browser the payment opens in; none when left out."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'includeEmptyModel')]", update: {x-cli-description: "Include requests without a requested model; hidden by default unless searching with --q or --id-query."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'includeUnmatchedGet')]", update: {x-cli-description: "Include unmatched gateway GET 404 requests; hidden by default unless searching or filtering for 404 or rejected."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'invitationId')]", update: {x-cli-description: "Invitation ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'inviteId')]", update: {x-cli-description: "Invite code ID."}}
@@ -187,6 +188,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'q')]", update: {x-cli-description: "Search text."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'range')]", update: {x-cli-description: "Time range: 6h, 24h or 7d."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'recipientUserId')]", update: {x-cli-description: "User who receives the order; must be an active member of the organization."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'recordId')]", update: {x-cli-description: "Referral binding record ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'refresh')]", update: {x-cli-description: "Skip the cache and read fresh data."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'replay')]", update: {x-cli-description: "Response cache filter: all, replay, non-replay or reused-source."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'requestId')]", update: {x-cli-description: "Request ID."}}
@@ -459,6 +461,7 @@ actions:
   - {target: "$.paths['/api/admin/system/database'].get", update: {x-cchp-group: admin, x-cli-name: database, x-cli-description: "Show database connection pool status and the slowest statements."}}
   - {target: "$.paths['/api/admin/system/database'].get.parameters[?(@.name == 'order')]", update: {x-cli-description: "Sort order of the statement ranking."}}
   - {target: "$.paths['/api/admin/system/updates'].get", update: {x-cchp-group: admin, x-cli-name: check-updates, x-cli-description: "Check for newer server releases."}}
+  - {target: "$.paths['/api/admin/system/updates'].get.parameters[?(@.name == 'locale')]", update: {x-cli-description: "Language for release notes, for example en-US; falls back to the default language when omitted or unsupported."}}
   - {target: "$.paths['/api/admin/users'].get", update: {x-cchp-group: admin, x-cli-name: users, x-cli-description: "List every user on the platform."}}
   - {target: "$.paths['/api/admin/users'].post", update: {x-cchp-group: admin, x-cli-name: invite-user, x-cli-description: "Invite a user to an organization."}}
   - {target: "$.paths['/api/admin/users/local'].post", update: {x-cchp-group: admin, x-cli-description: "Create a user with a temporary password."}}
@@ -622,6 +625,7 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/quota'].get", update: {x-cchp-group: billing, x-cli-name: member-quota, x-cli-description: "Show a member's own quotas, the organization, member default and team quotas they inherit, and the limits in effect."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/quota-adjustments'].post", update: {x-cchp-group: billing, x-cli-name: adjust-member-quota, x-cli-description: "Raise, lower, set or clear a member's own quotas, with a reason."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/quota-adjustments/preview'].post", update: {x-cchp-group: billing, x-cli-name: preview-member-quota-adjustment, x-cli-description: "Preview a member's quotas and limits in effect after a quota adjustment; nothing is changed."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/quota/reset'].post", update: {x-cchp-group: billing, x-cli-name: reset-member-quota-usage, x-cli-description: "Reset a member's current-window quota usage to zero without changing past usage logs or ledger records."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/redeem'].post", update: {x-cchp-group: billing, x-cli-name: redeem-for-member, x-cli-description: "Redeem a code for a member, with the same checks as when they redeem it."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/billing/redeem/preview'].post", update: {x-cchp-group: billing, x-cli-name: preview-redeem-for-member, x-cli-description: "Check whether a code can be redeemed for a member and what it would add; nothing is redeemed."}}
 
@@ -680,6 +684,7 @@ actions:
   - {target: "$.paths['/api/admin/client-definitions/{id}'].delete", update: {x-cchp-group: safety, x-cli-name: delete-client-definition, x-cli-description: "Delete a client definition; fails if any client access rule set references it."}}
   - {target: "$.paths['/api/admin/client-definitions/order'].put", update: {x-cchp-group: safety, x-cli-name: reorder-client-definitions, x-cli-description: "Set the matching order of all client definitions."}}
   - {target: "$.paths['/api/admin/client-definitions/identify'].post", update: {x-cchp-group: safety, x-cli-name: identify-client, x-cli-description: "Test client identification against a sample request or archived request ID, optionally with an unsaved draft."}}
+  - {target: "$.paths['/api/admin/client-definitions/icon/fetch'].post", update: {x-cchp-group: safety, x-cli-name: preview-client-icon, x-cli-description: "Fetch a client icon from a website URL and return it as a data URL without saving it."}}
   - {target: "$.paths['/api/admin/client-definitions/{id}/icon/fetch'].post", update: {x-cchp-group: safety, x-cli-name: fetch-client-icon, x-cli-description: "Fetch a client definition's icon from its website and save it."}}
   - {target: "$.paths['/api/admin/client-definitions/{id}/restore-preset'].post", update: {x-cchp-group: safety, x-cli-name: restore-client-preset, x-cli-description: "Reset one built-in client definition's fields and matching condition to its preset, keeping order, icon and enabled state."}}
   - {target: "$.paths['/api/admin/client-definitions/presets/restore'].post", update: {x-cchp-group: safety, x-cli-name: restore-missing-client-presets, x-cli-description: "Re-add any deleted built-in client definitions at the end of the matching order."}}
@@ -799,6 +804,11 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/temporary-password'].post", update: {x-cchp-group: org, x-cli-name: set-member-temporary-password, x-cli-description: "Give a member a temporary password they must change at the next sign-in.", x-cli-ignore: true, x-cchp-exclude-reason: "Changing a member's sign-in details needs a recent sign-in in the browser; the server rejects management tokens here."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/team-assignment-orgs'].get", update: {x-cchp-group: org, x-cli-name: member-team-orgs, x-cli-description: "List the current and manageable descendant organizations where you can assign a member to a team."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/move'].post", update: {x-cchp-group: org, x-cli-name: move-member, x-cli-description: "Move an active member to a team in a descendant organization asynchronously; removes their current org teams, LLM keys and grants."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/members/local'].post", update: {x-cchp-group: org, x-cli-name: create-local-member, x-cli-description: "Create a local member account directly in the organization without SMTP.", x-cli-ignore: true, x-cchp-exclude-reason: "Creating a local member account needs a browser session, human verification and recent sign-in; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/referral'].get", update: {x-cchp-group: org, x-cli-name: member-referral, x-cli-description: "Show a member's inviter binding, invited members and referral code in the organization."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/referral'].post", update: {x-cchp-group: org, x-cli-name: create-member-referral, x-cli-description: "Create a referral binding between a member and an inviter or invitee in the organization."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/referral/{recordId}'].patch", update: {x-cchp-group: org, x-cli-name: update-member-referral, x-cli-description: "Change a member's referral binding: switch inviter, bind or unbind, or adjust when rewards start."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/members/{userId}/referral/{recordId}'].delete", update: {x-cchp-group: org, x-cli-name: delete-member-referral, x-cli-description: "Delete a member's referral binding record; past referral rewards stay intact."}}
 
   # ── Model safety ──
   - {target: "$.paths['/api/admin/model-safety/rules'].get", update: {x-cchp-group: safety, x-cli-name: model-safety-rules, x-cli-description: "List model safety rules."}}
@@ -981,6 +991,13 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/network-proxies'].get", update: {x-cchp-group: providers, x-cli-name: network-proxies, x-cli-description: "Show a provider's own outbound proxies; none means it follows the global proxy. Passwords are never shown."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/network-proxies'].put", update: {x-cchp-group: providers, x-cli-name: set-network-proxies, x-cli-description: "Replace a provider's outbound proxies, used by all its requests except keys with their own; an empty list follows the global proxy."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/network-proxies/test'].post", update: {x-cchp-group: providers, x-cli-name: test-network-proxies, x-cli-description: "Send one test request through each proxy you give, by default to the provider's first enabled endpoint, and report the results."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync'].get", update: {x-cchp-group: providers, x-cli-name: new-api-group-sync, x-cli-description: "Show a provider's New API group sync settings, latest status, managed key count and active run."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync'].patch", update: {x-cchp-group: providers, x-cli-name: update-new-api-group-sync, x-cli-description: "Change a provider's New API group auto-sync settings without starting a sync now."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/preview'].post", update: {x-cchp-group: providers, x-cli-name: preview-new-api-group-sync, x-cli-description: "Preview a provider's upstream New API groups, missing protocol endpoints and managed key status without making changes."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/run'].post", update: {x-cchp-group: providers, x-cli-name: run-new-api-group-sync, x-cli-description: "Save New API group sync settings and reconcile now: create upstream tokens, missing endpoints and managed keys, and revoke removed groups' managed keys."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs'].post", update: {x-cchp-group: providers, x-cli-name: start-new-api-group-sync, x-cli-description: "Save New API group sync settings and queue a background reconciliation run; check progress with cchp providers new-api-group-sync-run."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs/{runId}'].get", update: {x-cchp-group: providers, x-cli-name: new-api-group-sync-run, x-cli-description: "Show a New API group sync run's status, stage, per-group progress and summary."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs/{runId}'].get.parameters[?(@.name == 'runId')]", update: {x-cli-description: "Sync run ID, as cchp providers start-new-api-group-sync returns it."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon'].get", update: {x-cchp-group: providers, x-cli-name: favicon, x-cli-description: "Download a provider's icon."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon/refresh'].post", update: {x-cchp-group: providers, x-cli-name: refresh-favicon, x-cli-description: "Fetch a provider's icon again."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon/status'].get", update: {x-cchp-group: providers, x-cli-name: favicon-status, x-cli-description: "Show whether a provider's icon was fetched."}}
@@ -1046,6 +1063,7 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/revoked'].get.parameters[?(@.name == 'q')]", update: {x-cli-description: "Search key names, notes and last four characters."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/totals'].get", update: {x-cchp-group: keys, x-cli-name: provider-totals, x-cli-description: "Count a provider's revoked keys, the keys bound to each endpoint and the keys whose cost multiplier is not 1.00x."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/upstream/defaults'].get", update: {x-cchp-group: keys, x-cli-name: new-key-ratio-defaults, x-cli-description: "Show whether new keys of a provider detect their cost multiplier from the upstream, and whether that setting is locked."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/upstream/lookup'].post", update: {x-cchp-group: keys, x-cli-name: lookup-upstream, x-cli-description: "Look up upstream New API token metadata (group, name and suggested name) for unsaved provider keys without saving them."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/batch'].patch", update: {x-cchp-group: keys, x-cli-name: update-many, x-cli-description: "Change fields of several keys; each succeeds or fails on its own."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/batch'].post", update: {x-cchp-group: keys, x-cli-name: create-many, x-cli-description: "Add several keys; each succeeds or fails on its own."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}'].delete", update: {x-cchp-group: keys, x-cli-name: revoke, x-cli-description: "Revoke a key."}}
@@ -1108,6 +1126,7 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/teams/{teamId}/members'].post", update: {x-cchp-group: org, x-cli-name: add-team-member, x-cli-description: "Add a member to a team."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/teams/{teamId}/members/{userId}'].delete", update: {x-cchp-group: org, x-cli-name: remove-team-member, x-cli-description: "Remove a member from a team."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/teams/{teamId}/members/{userId}/role'].patch", update: {x-cchp-group: org, x-cli-name: set-team-role, x-cli-description: "Change a member's role in a team."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/teams/{teamId}/provider-groups'].get", update: {x-cchp-group: org, x-cli-name: team-provider-groups, x-cli-description: "List the provider groups a team can enable or set rate multipliers on, with inherited disabled states."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/team-tree'].get", update: {x-cchp-group: org, x-cli-name: team-tree, x-cli-description: "Show the teams you can manage as a tree."}}
 
   # ── Management tokens ──
