@@ -64,6 +64,21 @@ cchp api disableProviderKey --provider-id <id> --key-id <keyId> --allow-write --
 Disabling can be undone with `enableProviderKey`. Revoking a key
 (`revokeProviderKey`) cannot, so it also needs `--confirm revokeProviderKey`.
 
+## Check a provider's keys
+
+```
+cchp api getProviderReport --provider-id <id> --json               # each key's last 24 hours
+cchp api getProviderReportKey --provider-id <id> --key-id <keyId> --json
+cchp api listProviderTestKeyStates --provider-id <id> --json       # latest test result per key
+cchp schema createProviderTestRun --json
+cchp api createProviderTestRun --body-file run.json --allow-write --json   # test keys now
+cchp api getProviderTestRun --run-id <runId> --json
+```
+
+A manual test sends real requests to the upstream at the platform's cost, and
+CCHP allows a few a minute per user. Scheduled tests are
+`listProviderTestTasks` and `runProviderTestTaskNow`.
+
 ## Create an LLM token
 
 ```

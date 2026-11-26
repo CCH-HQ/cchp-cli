@@ -253,7 +253,7 @@ func TestDiscoveryWorksOffline(t *testing.T) {
 	}
 	r = cchp(t, env, "", "version", "--json")
 	expectOK(t, r)
-	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.16"`) {
+	if !strings.Contains(string(r.res.Data), `"tag":"v1.0.17"`) {
 		t.Fatalf("version %s", r.res.Data)
 	}
 	expectFail(t, cchp(t, env, "", "api", "noSuchOperation", "--json"), 2, "usage")
@@ -431,6 +431,11 @@ func TestNetworkProxiesReplaceTheListAndNeverShowPasswords(t *testing.T) {
 	s := newSession(t)
 	provider := createProvider(t, s, fmt.Sprintf("Proxies %d", time.Now().UnixNano()))
 	key := createProviderKey(t, s, provider, "proxied")
+	// Leave no password proxy behind: while one exists, the CCHP v1.0.17 control
+	// plane cannot build its routing graph and cchp providers group-routing fails.
+	t.Cleanup(func() {
+		expectOK(t, s.run(t, `{"mode":"failover","proxies":[]}`, "providers", "set-network-proxies", provider, "--body-file", "-", "--allow-write", "--confirm", "saveProviderNetworkProxies"))
+	})
 	const password = "pw-e2e-never-shown"
 	body := `{"mode":"failover","proxies":[{"name":"office","scheme":"http","host":"127.0.0.1","port":3128,"username":"u","password":"` + password + `"}]}`
 
@@ -593,6 +598,91 @@ func TestOperationsAddedInV1016(t *testing.T) {
 
 	// Local member creation is excluded because the server requires a browser session.
 	expectFail(t, s.run(t, "", "api", "createOrgLocalMember"), 8, "browser_session_required")
+}
+
+// Operations CCHP v1.0.17 added answer a management token: provider tests,
+// client recordings and templates, the redesigned plugin system, the provider
+// report and provider group routing. Plugin approvals need the browser, and the
+// legacy key health checks and plugin commands are gone.
+func TestOperationsAddedInV1017(t *testing.T) {
+	s := newSession(t)
+	provider := createProvider(t, s, fmt.Sprintf("Report %d", time.Now().UnixNano()))
+	key := createProviderKey(t, s, provider, "reported")
+
+	for _, args := range [][]string{
+		{"provider-tests", "overview"},
+		{"provider-tests", "response-catalog"},
+		{"provider-tests", "tasks"},
+		{"provider-tests", "runs", "--limit", "5"},
+		{"provider-tests", "key-states", "--provider-id", provider},
+		{"provider-tests", "recordings", "--limit", "5"},
+		{"provider-tests", "templates", "--source", "builtin"},
+		{"admin", "image-input-limits"},
+		{"keys", "list", "--sort", "multiplier", "--limit", "1"},
+	} {
+		expectOK(t, s.run(t, "", args...))
+	}
+
+	// The plugin system is off by default; its operations answer 404 (31400)
+	// until feature.plugin_system is on.
+	setPluginSystem := func(on bool) {
+		body := fmt.Sprintf(`{"enabled":%v,"reason":"cchp e2e"}`, on)
+		expectOK(t, s.run(t, body, "admin", "set-feature-flag", "feature.plugin_system", "--body-file", "-", "--allow-write", "--confirm", "setFeatureFlag"))
+	}
+	off := s.run(t, "", "plugins", "list")
+	if off.exit == 5 && off.res.Error != nil && off.res.Error.Kind == "not_found" {
+		setPluginSystem(true)
+		t.Cleanup(func() { setPluginSystem(false) })
+		for deadline := time.Now().Add(20 * time.Second); ; time.Sleep(500 * time.Millisecond) {
+			if r := s.run(t, "", "plugins", "list"); r.exit == 0 || time.Now().After(deadline) {
+				break
+			}
+		}
+	}
+	for _, args := range [][]string{
+		{"plugins", "list"},
+		{"plugins", "catalog"},
+		{"plugins", "overview"},
+		{"plugins", "resources"},
+		{"plugins", "platform-list"},
+		{"plugins", "publishers"},
+		{"plugins", "packages"},
+		{"plugins", "sources"},
+		{"plugins", "runners"},
+		{"plugins", "settings"},
+	} {
+		expectOK(t, s.run(t, "", args...))
+	}
+
+	r := s.run(t, "", "providers", "report", provider)
+	expectOK(t, r)
+	if !strings.Contains(string(r.res.Data), key) {
+		t.Fatalf("the provider report lists the provider's key %s: %s", key, r.res.Data)
+	}
+	expectOK(t, s.run(t, "", "providers", "key-report", provider, key))
+
+	group := s.run(t, fmt.Sprintf(`{"name":"Routing %d"}`, time.Now().UnixNano()), "providers", "create-group", "--body-file", "-", "--allow-write")
+	expectOK(t, group)
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(group.res.Data, &created); err != nil || created.ID == "" {
+		t.Fatalf("create-group %s", group.res.Data)
+	}
+	routing := s.run(t, "", "providers", "group-routing", created.ID)
+	expectOK(t, routing)
+	if !strings.Contains(string(routing.res.Data), `"strategy":`) {
+		t.Fatalf("group-routing %s", routing.res.Data)
+	}
+
+	// The temporary recording key is a one-time secret: no --secret-out, no call.
+	expectFail(t, s.run(t, `{"clientDefinitionId":"claude-code","catalogEndpointId":"anthropic.messages","providerGroupId":"none"}`, "provider-tests", "create-recording", "--body-file", "-", "--allow-write"), 13, "policy")
+	// Plugin approvals reject management tokens; cchp explains instead of calling.
+	expectFail(t, s.run(t, "", "api", "approveOrgPluginInstall"), 8, "browser_session_required")
+	expectFail(t, s.run(t, "", "api", "testImagePreprocess"), 2, "usage")
+	// The legacy health checks and plugin commands are gone.
+	expectFail(t, s.run(t, "", "api", "batchTestProviderKeyLiveness"), 2, "usage")
+	expectFail(t, s.run(t, "", "keys", "check"), 2, "usage")
 }
 
 func TestPermissionDenied(t *testing.T) {

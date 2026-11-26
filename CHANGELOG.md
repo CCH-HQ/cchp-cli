@@ -2,6 +2,88 @@
 
 ## [Unreleased]
 
+Built from the CCHP v1.0.17 control-plane spec with embedded Restish v2.3.0.
+
+### Added
+
+- Commands for the operations CCHP v1.0.17 added:
+  - a new `cchp provider-tests` group for scheduled and manual provider key
+    tests, which replace the key health checks: `overview`, `tasks`, `task`,
+    `create-task`, `update-task`, `delete-task`, `set-task-enabled`,
+    `run-task`, `task-runs`, `task-executions`, `task-history`, `task-series`,
+    `runs`, `run`, `start-run`, `cancel-run`, `execution`, `key-contexts`,
+    `key-states`, `target-candidates`, `estimate-cost`, `evaluate-rule` and
+    `response-catalog`;
+  - client request recording and request templates in `cchp provider-tests`:
+    `recordings`, `recording`, `create-recording`, `cancel-recording`,
+    `recording-exchange`, `infer-recording`, `rotate-recording-key`,
+    `save-recording`, `templates`, `template`, `update-template`,
+    `delete-template`, `export-template` and `preview-template`; the temporary
+    recording key that `create-recording` and `rotate-recording-key` return is
+    a one-time secret and needs `--secret-out`;
+  - the redesigned plugin system in `cchp plugins`: organization installs
+    (`catalog`, `list`, `overview`, `resources`, `install`, `get`, `update`,
+    `uninstall`, `config`, `set-config`, `cards`, `invoke`, `runs`, `run`,
+    `operations`, `registrations`, `preview`, `suspend`, `resume`,
+    `rotate-token`, `narrow-grant`, `evaluate-upgrade`, `apply-upgrade`,
+    `reject-upgrade`, `retry-subscription`, `skip-subscription`,
+    `release-suppression`, `lookup-pairing`, `preview-pairing` and
+    `reject-pairing`), the same commands for platform installs with a
+    `platform-` prefix (for example `platform-list` and `platform-install`),
+    and plugin publishers, packages, sources and settings for platform
+    administrators (`publishers`, `register-publisher`, `revoke-publisher`,
+    `add-publisher-key`, `revoke-publisher-key`, `packages`, `upload-package`,
+    `confirm-signing-key`, `withdraw-version`, `sources`, `save-source`,
+    `sync-source`, `runners`, `spend`, `settings`, `update-settings` and
+    `release-all-suppressions`);
+  - the provider report in `cchp providers report` and `key-report`, and
+    `cchp providers group-routing`;
+  - image input limits in `cchp admin image-input-limits`.
+- CCHP answers the plugin commands with not found (404, code 31400) while its
+  experimental `feature.plugin_system` flag is off; a platform administrator
+  turns it on with `cchp admin set-feature-flag feature.plugin_system`.
+- `--routing-entry` on `cchp keys list`, and its `--sort` also takes
+  `multiplier` and `probability`.
+
+### Changed
+
+- `cchp plugins list`, `get`, `config` and `uninstall` act on installs of the
+  redesigned plugin system and take `--install-id`.
+- `cchp providers run-new-api-group-sync` and `start-new-api-group-sync` send
+  the body CCHP v1.0.17 expects, whose `adopt_existing_keys` takes over
+  matching local keys instead of creating new upstream tokens.
+
+### Removed
+
+- The key health check commands, removed in CCHP v1.0.17 in favor of provider
+  tests (`cchp provider-tests`): `cchp keys check`, `check-many`,
+  `check-results` and `check-defaults`, and `cchp providers check-new-key`,
+  `check-endpoints`, `check-schedules`, `create-check-schedule`,
+  `update-check-schedule`, `delete-check-schedule`, `run-check-schedule` and
+  `check-schedule-runs`.
+- The commands of the retired plugin system: `cchp plugins upload`, `inspect`,
+  `enable`, `disable`, `save-config`, `save-targets`, `logs` and `metrics`, and
+  the plugin upstream control commands `upstream-bindings`,
+  `create-upstream-binding`, `update-upstream-binding`,
+  `override-upstream-guard`, `clear-upstream-guard-override` and
+  `rotate-upstream-webhook-secret`.
+- `cchp providers group-scheduling` and `group-key-scheduling`, replaced by
+  `cchp providers group-routing`.
+
+### Spec and coverage
+
+- The pinned spec is CCHP v1.0.17 (`b0579fa14a`): 844 operations, 715
+  available, 128 excluded with reasons, 1 unsupported. See
+  [docs/coverage.md](docs/coverage.md).
+- Eight new plugin approval operations are excluded with their reason:
+  approving a plugin install, an upgrade or an external pairing, and approving
+  an install again, for organization and platform installs. They need a recent
+  browser sign-in and human verification, and the server rejects management
+  tokens for them.
+- One new operation is unsupported: testing image input preprocessing
+  (`testImagePreprocess`) sends a multipart form with text fields and a list of
+  images, which cchp cannot build yet.
+
 ## [v0.2.1] - 2026-11-23
 
 Built from the CCHP v1.0.16 control-plane spec with embedded Restish v2.3.0.

@@ -34,6 +34,7 @@ Your wallet balance and package allowances are separate. Viewing them requires
 cchp providers list
 cchp providers get <provider-id>
 cchp providers test <provider-id>         # checks the provider answers; changes nothing
+cchp providers report <provider-id>       # each key's requests, health and multipliers, last 24 hours
 ```
 
 ## Provider keys
@@ -44,6 +45,19 @@ cchp keys disable <provider-id> <key-id>  # stop using a key for now
 cchp keys enable <provider-id> <key-id>
 cchp keys health                          # recent health of every key
 ```
+
+## Provider tests
+
+```
+cchp provider-tests overview              # pass rate, test cost and keys that keep failing
+cchp provider-tests tasks                 # scheduled tests and their latest results
+cchp provider-tests key-states --provider-id <provider-id>   # latest result of each key
+cchp provider-tests runs --limit 20       # scheduled, manual and recovery runs
+```
+
+Provider tests replace the key health checks of earlier CCHP versions. A
+manual test (`cchp provider-tests start-run`) sends real requests to the
+upstream, so it needs `--allow-write` in agent mode.
 
 ## LLM tokens
 

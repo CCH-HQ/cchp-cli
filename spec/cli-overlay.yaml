@@ -20,8 +20,9 @@ x-cchp-groups:
   - {name: account, title: Account, summary: "Your identity, permissions, preferences and announcements."}
   - {name: tokens, title: Management tokens, summary: "Tokens that let tools like cchp manage CCHP."}
   - {name: llm-tokens, title: LLM tokens, summary: "Gateway keys that apps use to call models, including members' keys."}
-  - {name: providers, title: Providers, summary: "Upstream providers, their endpoints, groups, health checks and search providers."}
+  - {name: providers, title: Providers, summary: "Upstream providers, their endpoints, groups, reports and search providers."}
   - {name: keys, title: Provider keys, summary: "Upstream credentials attached to providers."}
+  - {name: provider-tests, title: Provider tests, summary: "Scheduled and manual provider key tests, their runs and results, and the client recordings and request templates they send."}
   - {name: requests, title: Requests, summary: "Request logs, their attempts and archived payloads."}
   - {name: usage, title: Usage, summary: "Usage totals, trends, rankings, live metrics and exports."}
   - {name: models, title: Models, summary: "The model catalog and pricing."}
@@ -33,7 +34,7 @@ x-cchp-groups:
   - {name: overrides, title: Request overrides, summary: "Rules that rewrite requests and responses on their way through the gateway."}
   - {name: operations, title: Operations, summary: "Announcements, redeem codes, billing adjustments and emails sent by operators."}
   - {name: config, title: Configuration, summary: "Configuration drafts, rollout experiments, publishing and snapshots."}
-  - {name: plugins, title: Plugins, summary: "Gateway plugins."}
+  - {name: plugins, title: Plugins, summary: "Plugin installs with their settings, runs and upgrades, and the publishers, packages and sources plugins come from."}
   - {name: import, title: CC Hub import, summary: "Import users, providers and keys from a CC Hub installation."}
   - {name: public, title: Public, summary: "Health, public model catalog and status pages that need no sign-in."}
   - {name: sign-in, title: Sign-in and setup, summary: "Browser sign-in, installation and human verification flows."}
@@ -44,7 +45,6 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'If-None-Match')]", update: {x-cli-description: "Return 304 when the content still matches this ETag."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'Last-Event-ID')]", update: {x-cli-description: "Resume the stream after this event ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'Range')]", update: {x-cli-description: "Byte range to download, for example bytes=0-1023."}}
-  - {target: "$.paths.*.*.parameters[?(@.name == 'X-Expected-SHA256')]", update: {x-cli-description: "Expected SHA-256 of the uploaded package; the upload fails when it differs."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'action')]", update: {x-cli-description: "Only events with this exact action."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'activeOnly')]", update: {x-cli-description: "Only cooldowns and group restrictions that are still running."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'actorId')]", update: {x-cli-description: "Only events by this actor."}}
@@ -69,6 +69,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'clientId')]", update: {x-cli-description: "CLI client ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'code')]", update: {x-cli-description: "Authorization code from the identity provider."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'codeId')]", update: {x-cli-description: "Redeem code ID."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'command')]", update: {x-cli-description: "Plugin command name, as the plugin declares it."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'connectorId')]", update: {x-cli-description: "Connector ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'converted')]", update: {x-cli-description: "Only requests converted between API formats (true) or not (false)."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'costBasis')]", update: {x-cli-description: "Cost to rank by: user for what users were charged, supplier for what every upstream attempt cost (organization administrators only)."}}
@@ -95,6 +96,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'endpointIds')]", update: {x-cli-description: "Only requests that ended on these endpoints."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'errorCategories')]", update: {x-cli-description: "Only requests with these error categories."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'eventId')]", update: {x-cli-description: "Finance event ID."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'exchangeId')]", update: {x-cli-description: "Recorded exchange ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeApiKeyIds')]", update: {x-cli-description: "Leave out requests made with these keys."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeEndpointIds')]", update: {x-cli-description: "Leave out requests that ended on these endpoints."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeModels')]", update: {x-cli-description: "Leave out these models."}}
@@ -104,6 +106,8 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeStatusCodes')]", update: {x-cli-description: "Leave out these status codes."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeTeamId')]", update: {x-cli-description: "Leave out members of this team, for example to find people to add to it."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'excludeUserIds')]", update: {x-cli-description: "Leave out requests from these users."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'executionId')]", update: {x-cli-description: "Test execution ID."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'expectedVersion')]", update: {x-cli-description: "The install's current version; the change fails if it changed."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'expected_revision')]", update: {x-cli-description: "Revision you read before deleting; the delete fails if it changed."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'experimentId')]", update: {x-cli-description: "Experiment ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'featureKey')]", update: {x-cli-description: "Entitlement feature key, for example quota.credit_total."}}
@@ -111,6 +115,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'file')]", update: {x-cli-description: "Avatar file name."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'fileId')]", update: {x-cli-description: "Result file ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'finalStatus')]", update: {x-cli-description: "Filter by final result; failed covers failed, cancelled, timed out, rejected and broken streams."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'fingerprint')]", update: {x-cli-description: "Signing key fingerprint."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'format')]", update: {x-cli-description: "Export format (csv)."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'from')]", update: {x-cli-description: "Start time, RFC 3339."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'granularity')]", update: {x-cli-description: "Time bucket size."}}
@@ -129,18 +134,19 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'inApp')]", update: {x-cli-description: "In-app browser the payment opens in; none when left out."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'includeEmptyModel')]", update: {x-cli-description: "Include requests without a requested model; hidden by default unless searching with --q or --id-query."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'includeUnmatchedGet')]", update: {x-cli-description: "Include unmatched gateway GET 404 requests; hidden by default unless searching or filtering for 404 or rejected."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'installId')]", update: {x-cli-description: "Plugin install ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'invitationId')]", update: {x-cli-description: "Invitation ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'inviteId')]", update: {x-cli-description: "Invite code ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'invite_id')]", update: {x-cli-description: "Only requests made with this invite code."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'invoiceId')]", update: {x-cli-description: "Invoice ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'ip')]", update: {x-cli-description: "Exact client IP address."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'jobId')]", update: {x-cli-description: "Job ID."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'keepPrivateState')]", update: {x-cli-description: "Keep the plugin's private stored data for 30 days instead of deleting it now."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'keyId')]", update: {x-cli-description: "Key ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'keyIds')]", update: {x-cli-description: "Key IDs to read; leave out for every key (at most 500)."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'kind')]", update: {x-cli-description: "Only this kind."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'kinds')]", update: {x-cli-description: "Only these kinds."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'lastEventId')]", update: {x-cli-description: "Resume the stream after this event ID."}}
-  - {target: "$.paths.*.*.parameters[?(@.name == 'level')]", update: {x-cli-description: "Only this log level."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'limit')]", update: {x-cli-description: "Items per page."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'locale')]", update: {x-cli-description: "Language, for example en-US."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'maxAmountUnits')]", update: {x-cli-description: "Largest absolute balance change in credit units; 0 means no limit."}}
@@ -165,13 +171,14 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'organization')]", update: {x-cli-description: "Organization ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'organizationId')]", update: {x-cli-description: "Organization ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'organization_id')]", update: {x-cli-description: "Organization ID; leave out for your own organization."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'packageId')]", update: {x-cli-description: "Plugin package ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'page')]", update: {x-cli-description: "Page number, starting at 1."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'pageSize')]", update: {x-cli-description: "Items per page."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'pairingId')]", update: {x-cli-description: "Plugin pairing ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'part')]", update: {x-cli-description: "Archived part name, URL-encoded, for example client%2Frequest.body."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'pattern')]", update: {x-cli-description: "Only models matching this wildcard; * matches any run of characters, ignoring case."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'period')]", update: {x-cli-description: "Time period."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'phase')]", update: {x-cli-description: "Override phase: inbound, attempt or response."}}
-  - {target: "$.paths.*.*.parameters[?(@.name == 'pluginId')]", update: {x-cli-description: "Plugin ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'policyId')]", update: {x-cli-description: "Quota policy ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'prefix')]", update: {x-cli-description: "Only configuration keys under this prefix."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'presetId')]", update: {x-cli-description: "Preset ID, for example model_redirect; cchp overrides catalog lists them."}}
@@ -185,6 +192,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'providerIds')]", update: {x-cli-description: "Only requests that ended on these providers."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'providerKeyId')]", update: {x-cli-description: "Only events served by this provider key; needs moderation_event:inspect."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'providerKeyIds')]", update: {x-cli-description: "Only requests served by these provider keys."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'publisherId')]", update: {x-cli-description: "Plugin publisher ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'q')]", update: {x-cli-description: "Search text."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'range')]", update: {x-cli-description: "Time range: 6h, 24h or 7d."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'recipientUserId')]", update: {x-cli-description: "User who receives the order; must be an active member of the organization."}}
@@ -219,6 +227,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'sortBy')]", update: {x-cli-description: "Field to sort by."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'sortOrder')]", update: {x-cli-description: "Sort direction."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'source')]", update: {x-cli-description: "Filter by catalog source; all for every model."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'sourceId')]", update: {x-cli-description: "Plugin source ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'sourceSessionId')]", update: {x-cli-description: "Physical session ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'start')]", update: {x-cli-description: "Start of the time window, RFC 3339, included."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'startedAt')]", update: {x-cli-description: "The request's start time (RFC 3339, startedAt in the request list); the server then looks only in that time range."}}
@@ -228,6 +237,8 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'statuses')]", update: {x-cli-description: "Only these statuses."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'storeId')]", update: {x-cli-description: "Task result store ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'stream')]", update: {x-cli-description: "Plan a streaming request."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'subscriptionId')]", update: {x-cli-description: "Event subscription ID."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'suppressionId')]", update: {x-cli-description: "Key suspension ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'tag')]", update: {x-cli-description: "Only members with this tag."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'targetId')]", update: {x-cli-description: "Target ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'targetType')]", update: {x-cli-description: "Target type."}}
@@ -236,6 +247,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'teamIds')]", update: {x-cli-description: "Only requests from these teams."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'teamRole')]", update: {x-cli-description: "Only members with this role in a team."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'team_id')]", update: {x-cli-description: "Only codes of this team."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'templateRef')]", update: {x-cli-description: "Template reference: a recorded template ID (crt_...) or a built-in template (builtin:<clientId>:<endpointShort>)."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'timezone')]", update: {x-cli-description: "IANA time zone for day boundaries, for example Asia/Shanghai; default UTC."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'to')]", update: {x-cli-description: "End time, RFC 3339."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'token')]", update: {x-cli-description: "One-time download token."}}
@@ -249,6 +261,7 @@ actions:
   - {target: "$.paths.*.*.parameters[?(@.name == 'values')]", update: {x-cli-description: "Only look up these values (at most 200)."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'variant')]", update: {x-cli-description: "Body variant to read: surrogate (redacted) or original (requires request_archive:reveal_original and writes an audit log)."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'version')]", update: {x-cli-description: "Version you read before deleting; the delete fails if it changed."}}
+  - {target: "$.paths.*.*.parameters[?(@.name == 'versionId')]", update: {x-cli-description: "Plugin package version ID."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'window')]", update: {x-cli-description: "History window."}}
   - {target: "$.paths.*.*.parameters[?(@.name == 'withoutTeam')]", update: {x-cli-description: "Only members who are in no team; not allowed with --team-id or --team-role."}}
   # ── Account ──
@@ -474,6 +487,9 @@ actions:
   - {target: "$.paths['/api/admin/users/{userId}/orgs/{orgId}'].delete", update: {x-cchp-group: admin, x-cli-name: remove-user-from-org, x-cli-description: "Remove a user from an organization."}}
   - {target: "$.paths['/api/admin/users/{userId}/orgs/{orgId}/role'].post", update: {x-cchp-group: admin, x-cli-name: set-user-role, x-cli-description: "Change a user's role in an organization."}}
   - {target: "$.paths['/api/admin/users/{userId}/security/{action}'].post", update: {x-cchp-group: admin, x-cli-description: "Reset a user's security settings."}}
+  - {target: "$.paths['/api/admin/image-preprocess/endpoint-limits'].get", update: {x-cchp-group: admin, x-cli-name: image-input-limits, x-cli-description: "Show each endpoint's built-in image input limits and the limits in effect at a scope, with where each value comes from."}}
+  - {target: "$.paths['/api/admin/image-preprocess/endpoint-limits'].get.parameters[?(@.name == 'scope')]", update: {x-cli-description: "Scope key, for example global:* or organization:<id>; global:* when left out."}}
+  - {target: "$.paths['/api/admin/image-preprocess/test'].post", update: {x-cchp-group: admin, x-cli-name: test-image-preprocess, x-cli-description: "Run image input preprocessing on sample images for an endpoint and show the results.", x-cchp-unsupported-reason: "The request is a multipart form with text fields and a list of images; cchp uploads single file fields only."}}
 
   # ── Request overrides ──
   - {target: "$.paths['/api/admin/request-overrides/catalog'].get", update: {x-cchp-group: overrides, x-cli-name: catalog, x-cli-description: "Show what override rules can use at a scope: fields, operators, targets, variables, functions, presets and limits."}}
@@ -916,29 +932,92 @@ actions:
   - {target: "$.paths['/api/admin/payment/package-catalog'].get", update: {x-cchp-group: admin, x-cli-name: order-packages, x-cli-description: "List the plans a custom order can include for a user."}}
 
   # ── Plugins ──
-  - {target: "$.paths['/api/admin/plugins'].get", update: {x-cchp-group: plugins, x-cli-name: list, x-cli-description: "List plugins."}}
-  - {target: "$.paths['/api/admin/plugins'].post", update: {x-cchp-group: plugins, x-cli-name: upload, x-cli-description: "Upload a plugin package."}}
-  - {target: "$.paths['/api/admin/plugins/inspect'].post", update: {x-cchp-group: plugins, x-cli-name: inspect, x-cli-description: "Check a plugin package before uploading it."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}'].delete", update: {x-cchp-group: plugins, x-cli-name: uninstall, x-cli-description: "Uninstall a plugin."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}'].get", update: {x-cchp-group: plugins, x-cli-name: get, x-cli-description: "Show a plugin."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/config'].get", update: {x-cchp-group: plugins, x-cli-name: config, x-cli-description: "Show a plugin's settings."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/config'].put", update: {x-cchp-group: plugins, x-cli-name: save-config, x-cli-description: "Change a plugin's settings."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/disable'].post", update: {x-cchp-group: plugins, x-cli-name: disable, x-cli-description: "Turn a plugin off."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/enable'].post", update: {x-cchp-group: plugins, x-cli-name: enable, x-cli-description: "Turn a plugin on."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/logs'].get", update: {x-cchp-group: plugins, x-cli-name: logs, x-cli-description: "Show a plugin's logs."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/metrics'].get", update: {x-cchp-group: plugins, x-cli-name: metrics, x-cli-description: "Show a plugin's metrics."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/targets'].put", update: {x-cchp-group: plugins, x-cli-name: save-targets, x-cli-description: "Choose where a plugin runs."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings'].get", update: {x-cchp-group: plugins, x-cli-name: upstream-bindings, x-cli-description: "List a plugin's upstream credential bindings and their routing guard state."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings'].post", update: {x-cchp-group: plugins, x-cli-name: create-upstream-binding, x-cli-description: "Bind an upstream credential to a plugin."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}'].put", update: {x-cchp-group: plugins, x-cli-name: update-upstream-binding, x-cli-description: "Change, expire or revoke a plugin's upstream credential binding."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}/override'].put", update: {x-cchp-group: plugins, x-cli-name: override-upstream-guard, x-cli-description: "Override an upstream binding's routing guard for a limited time, or clear the override."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}/webhook-secret'].put", update: {x-cchp-group: plugins, x-cli-name: rotate-upstream-webhook-secret, x-cli-description: "Replace the signing secret for an upstream binding's webhooks."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}'].put.parameters[?(@.name == 'credentialRef')]", update: {x-cli-description: "Upstream credential reference of the binding."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}/override'].put.parameters[?(@.name == 'credentialRef')]", update: {x-cli-description: "Upstream credential reference of the binding."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}/webhook-secret'].put.parameters[?(@.name == 'credentialRef')]", update: {x-cli-description: "Upstream credential reference of the binding."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}/override'].delete", update: {x-cchp-group: plugins, x-cli-name: clear-upstream-guard-override, x-cli-description: "End the manual override of an upstream binding's routing guard; the guard follows its policy again."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}/override'].delete.parameters[?(@.name == 'credentialRef')]", update: {x-cli-description: "Upstream credential reference of the binding."}}
-  - {target: "$.paths['/api/admin/plugins/{pluginId}/upstream-bindings/{credentialRef}/override'].delete.parameters[?(@.name == 'version')]", update: {x-cli-description: "The binding's current version; the change fails if it changed."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/catalog'].get", update: {x-cchp-group: plugins, x-cli-name: catalog, x-cli-description: "List the plugin packages from trusted publishers that your organization can install."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs'].get", update: {x-cchp-group: plugins, x-cli-name: list, x-cli-description: "List your organization's plugin installs."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs'].get.parameters[?(@.name == 'scope')]", update: {x-cli-description: "Only installs of this scope: organization."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs'].post", update: {x-cchp-group: plugins, x-cli-name: install, x-cli-description: "Install a plugin package in your organization; it waits until an administrator approves its permissions in the browser."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/meta'].get", update: {x-cchp-group: plugins, x-cli-name: overview, x-cli-description: "Show your organization's plugin installs as the console lists them: name, publisher, settings form, this month's spend and latest run."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/resources'].get", update: {x-cchp-group: plugins, x-cli-name: resources, x-cli-description: "List the providers, keys and models you can grant to plugins."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}'].get", update: {x-cchp-group: plugins, x-cli-name: get, x-cli-description: "Show a plugin install."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}'].patch", update: {x-cchp-group: plugins, x-cli-name: update, x-cli-description: "Change a plugin install's name, update policy, override priority or dependency bindings."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}'].delete", update: {x-cchp-group: plugins, x-cli-name: uninstall, x-cli-description: "Uninstall a plugin: revoke its token and remove what it registered; audit and usage records stay."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/approve'].post", update: {x-cchp-group: plugins, x-cli-name: approve, x-cli-description: "Approve the permissions a plugin install asks for and issue its token.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/cards'].get", update: {x-cchp-group: plugins, x-cli-name: cards, x-cli-description: "List the console cards a plugin install publishes."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/commands/{command}'].post", update: {x-cchp-group: plugins, x-cli-name: invoke, x-cli-description: "Run one of a plugin install's commands now, as a run of its own."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/config'].get", update: {x-cchp-group: plugins, x-cli-name: config, x-cli-description: "Show a plugin install's settings; secret fields show only whether they are set."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/config'].put", update: {x-cchp-group: plugins, x-cli-name: set-config, x-cli-description: "Change a plugin install's settings and secret fields."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/credentials/rotate'].post", update: {x-cchp-group: plugins, x-cli-name: rotate-token, x-cli-description: "Issue a plugin install a new token now and revoke the old one."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/grants/narrow'].post", update: {x-cchp-group: plugins, x-cli-name: narrow-grant, x-cli-description: "Take permissions away from a plugin install and issue it a new token at once."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/operations'].get", update: {x-cchp-group: plugins, x-cli-name: operations, x-cli-description: "List a plugin install's latest operation receipts."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/operations'].get.parameters[?(@.name == 'limit')]", update: {x-cli-description: "Most results to return; there is no next page."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/preview'].post", update: {x-cchp-group: plugins, x-cli-name: preview, x-cli-description: "Preview the permissions a plugin install or upgrade asks for, as the approval page shows them."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/reapprove'].post", update: {x-cchp-group: plugins, x-cli-name: reapprove, x-cli-description: "Approve a plugin install again and make yourself the owner of its token.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/registrations'].get", update: {x-cchp-group: plugins, x-cli-name: registrations, x-cli-description: "List what a plugin install has registered: schedules, subscriptions, key suspensions, signals, observations, presets and override rules."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/resume'].post", update: {x-cchp-group: plugins, x-cli-name: resume, x-cli-description: "Resume a suspended plugin install."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/runs'].get", update: {x-cchp-group: plugins, x-cli-name: runs, x-cli-description: "List a plugin install's runs."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/runs'].get.parameters[?(@.name == 'command')]", update: {x-cli-description: "Only runs of this command."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/runs'].get.parameters[?(@.name == 'limit')]", update: {x-cli-description: "Most results to return; there is no next page."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/runs/{runId}'].get", update: {x-cchp-group: plugins, x-cli-name: run, x-cli-description: "Show a plugin run with its attempts and operation receipts."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/subscriptions/{subscriptionId}/retry'].post", update: {x-cchp-group: plugins, x-cli-name: retry-subscription, x-cli-description: "Retry a plugin install's stalled event subscription from where it stopped."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/subscriptions/{subscriptionId}/skip'].post", update: {x-cchp-group: plugins, x-cli-name: skip-subscription, x-cli-description: "Skip the failing batch of a plugin install's stalled event subscription and resume delivery."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/suppressions/{suppressionId}/release'].post", update: {x-cchp-group: plugins, x-cli-name: release-suppression, x-cli-description: "End a key suspension that a plugin install created."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/suspend'].post", update: {x-cchp-group: plugins, x-cli-name: suspend, x-cli-description: "Suspend a plugin install."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/upgrade/apply'].post", update: {x-cchp-group: plugins, x-cli-name: apply-upgrade, x-cli-description: "Upgrade a plugin install to a version that asks for no new permissions."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/upgrade/approve'].post", update: {x-cchp-group: plugins, x-cli-name: approve-upgrade, x-cli-description: "Approve an upgrade that asks for more permissions and switch the plugin's token.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/upgrade/evaluate'].post", update: {x-cchp-group: plugins, x-cli-name: evaluate-upgrade, x-cli-description: "Compare a new version's permissions with the install's and follow its update policy: apply the upgrade, wait for a manual upgrade or hold it for approval."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/installs/{installId}/upgrade/reject'].post", update: {x-cchp-group: plugins, x-cli-name: reject-upgrade, x-cli-description: "Turn down a pending upgrade that asks for more permissions; the current version keeps running."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/pairings/lookup'].post", update: {x-cchp-group: plugins, x-cli-name: lookup-pairing, x-cli-description: "Find a pending external plugin pairing by its 8-character code and show the permissions it asks for."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/pairings/{pairingId}/approve'].post", update: {x-cchp-group: plugins, x-cli-name: approve-pairing, x-cli-description: "Approve an external plugin pairing and create its install.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/pairings/{pairingId}/preview'].post", update: {x-cchp-group: plugins, x-cli-name: preview-pairing, x-cli-description: "Preview an external plugin pairing again with the resources, settings and data-sharing confirmations you choose."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/plugins/pairings/{pairingId}/reject'].post", update: {x-cchp-group: plugins, x-cli-name: reject-pairing, x-cli-description: "Turn down an external plugin pairing."}}
+  - {target: "$.paths['/api/admin/plugins/installs'].get", update: {x-cchp-group: plugins, x-cli-name: platform-list, x-cli-description: "List platform plugin installs."}}
+  - {target: "$.paths['/api/admin/plugins/installs'].post", update: {x-cchp-group: plugins, x-cli-name: platform-install, x-cli-description: "Install a plugin package for the platform under an owning organization; it waits until its permissions are approved in the browser."}}
+  - {target: "$.paths['/api/admin/plugins/installs/meta'].get", update: {x-cchp-group: plugins, x-cli-name: platform-overview, x-cli-description: "Show platform plugin installs as the console lists them: name, publisher, settings form, this month's spend, latest run and delegated organizations."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}'].get", update: {x-cchp-group: plugins, x-cli-name: platform-get, x-cli-description: "Show a platform plugin install."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}'].patch", update: {x-cchp-group: plugins, x-cli-name: platform-update, x-cli-description: "Change a platform plugin install's name, update policy, override priority or dependency bindings."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}'].delete", update: {x-cchp-group: plugins, x-cli-name: platform-uninstall, x-cli-description: "Uninstall a platform plugin: revoke its token and remove what it registered; audit and usage records stay."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/approve'].post", update: {x-cchp-group: plugins, x-cli-name: platform-approve, x-cli-description: "Approve the permissions a platform plugin install asks for across organizations.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/commands/{command}'].post", update: {x-cchp-group: plugins, x-cli-name: platform-invoke, x-cli-description: "Run one of a platform plugin install's commands now, as a run of its own."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/config'].get", update: {x-cchp-group: plugins, x-cli-name: platform-config, x-cli-description: "Show a platform plugin install's settings; secret fields show only whether they are set."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/config'].put", update: {x-cchp-group: plugins, x-cli-name: platform-set-config, x-cli-description: "Change a platform plugin install's settings and secret fields."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/credentials/rotate'].post", update: {x-cchp-group: plugins, x-cli-name: platform-rotate-token, x-cli-description: "Issue a platform plugin install a new token now and revoke the old one."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/grants/narrow'].post", update: {x-cchp-group: plugins, x-cli-name: platform-narrow-grant, x-cli-description: "Take permissions away from a platform plugin install and issue it a new token at once."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/preview'].post", update: {x-cchp-group: plugins, x-cli-name: platform-preview, x-cli-description: "Preview the permissions a platform plugin install asks for across organizations."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/reapprove'].post", update: {x-cchp-group: plugins, x-cli-name: platform-reapprove, x-cli-description: "Approve a platform plugin install again and make yourself the owner of its token.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/registrations'].get", update: {x-cchp-group: plugins, x-cli-name: platform-registrations, x-cli-description: "List what a platform plugin install has registered: schedules, subscriptions, key suspensions, signals, observations, presets and override rules."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/resume'].post", update: {x-cchp-group: plugins, x-cli-name: platform-resume, x-cli-description: "Resume a suspended platform plugin install."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/runs'].get", update: {x-cchp-group: plugins, x-cli-name: platform-runs, x-cli-description: "List a platform plugin install's runs."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/runs'].get.parameters[?(@.name == 'command')]", update: {x-cli-description: "Only runs of this command."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/runs'].get.parameters[?(@.name == 'limit')]", update: {x-cli-description: "Most results to return; there is no next page."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/runs/{runId}'].get", update: {x-cchp-group: plugins, x-cli-name: platform-run, x-cli-description: "Show a platform plugin run with its attempts and operation receipts."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/subscriptions/{subscriptionId}/retry'].post", update: {x-cchp-group: plugins, x-cli-name: platform-retry-subscription, x-cli-description: "Retry a platform plugin install's stalled event subscription from where it stopped."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/subscriptions/{subscriptionId}/skip'].post", update: {x-cchp-group: plugins, x-cli-name: platform-skip-subscription, x-cli-description: "Skip the failing batch of a platform plugin install's stalled event subscription and resume delivery."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/suspend'].post", update: {x-cchp-group: plugins, x-cli-name: platform-suspend, x-cli-description: "Suspend a platform plugin install."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/upgrade/apply'].post", update: {x-cchp-group: plugins, x-cli-name: platform-apply-upgrade, x-cli-description: "Upgrade a platform plugin install to a version that asks for no new permissions."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/upgrade/approve'].post", update: {x-cchp-group: plugins, x-cli-name: platform-approve-upgrade, x-cli-description: "Approve a platform plugin upgrade that asks for more permissions and switch the plugin's token.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/upgrade/evaluate'].post", update: {x-cchp-group: plugins, x-cli-name: platform-evaluate-upgrade, x-cli-description: "Compare a new version's permissions with a platform plugin install's and follow its update policy."}}
+  - {target: "$.paths['/api/admin/plugins/installs/{installId}/upgrade/reject'].post", update: {x-cchp-group: plugins, x-cli-name: platform-reject-upgrade, x-cli-description: "Turn down a pending platform plugin upgrade that asks for more permissions; the current version keeps running."}}
+  - {target: "$.paths['/api/admin/plugins/pairings/lookup'].post", update: {x-cchp-group: plugins, x-cli-name: platform-lookup-pairing, x-cli-description: "Find a pending platform-wide external plugin pairing by its code and show the permissions it asks for."}}
+  - {target: "$.paths['/api/admin/plugins/pairings/{pairingId}/approve'].post", update: {x-cchp-group: plugins, x-cli-name: platform-approve-pairing, x-cli-description: "Approve a platform-wide external plugin pairing and create its install.", x-cli-ignore: true, x-cchp-exclude-reason: "Approving a plugin's permissions needs a recent browser sign-in and human verification; the server rejects management tokens here."}}
+  - {target: "$.paths['/api/admin/plugins/pairings/{pairingId}/preview'].post", update: {x-cchp-group: plugins, x-cli-name: platform-preview-pairing, x-cli-description: "Preview a platform-wide external plugin pairing again with the choices you make."}}
+  - {target: "$.paths['/api/admin/plugins/pairings/{pairingId}/reject'].post", update: {x-cchp-group: plugins, x-cli-name: platform-reject-pairing, x-cli-description: "Turn down a platform-wide external plugin pairing."}}
+  - {target: "$.paths['/api/admin/plugins/publishers'].get", update: {x-cchp-group: plugins, x-cli-name: publishers, x-cli-description: "List registered plugin publishers."}}
+  - {target: "$.paths['/api/admin/plugins/publishers'].post", update: {x-cchp-group: plugins, x-cli-name: register-publisher, x-cli-description: "Register a trusted plugin publisher with its signing public key."}}
+  - {target: "$.paths['/api/admin/plugins/publishers/{publisherId}/revoke'].post", update: {x-cchp-group: plugins, x-cli-name: revoke-publisher, x-cli-description: "Stop trusting a plugin publisher."}}
+  - {target: "$.paths['/api/admin/plugins/publishers/{publisherId}/keys'].post", update: {x-cchp-group: plugins, x-cli-name: add-publisher-key, x-cli-description: "Add an Ed25519 signing public key to a plugin publisher."}}
+  - {target: "$.paths['/api/admin/plugins/publishers/{publisherId}/keys/{fingerprint}'].delete", update: {x-cchp-group: plugins, x-cli-name: revoke-publisher-key, x-cli-description: "Revoke one of a plugin publisher's signing keys."}}
+  - {target: "$.paths['/api/admin/plugins/packages'].get", update: {x-cchp-group: plugins, x-cli-name: packages, x-cli-description: "List every registered plugin package and its versions."}}
+  - {target: "$.paths['/api/admin/plugins/packages/upload'].post", update: {x-cchp-group: plugins, x-cli-name: upload-package, x-cli-description: "Upload a plugin package, a .tar.gz sent base64-encoded in bundleBase64, and verify its manifest, Wasm imports and signature."}}
+  - {target: "$.paths['/api/admin/plugins/packages/{packageId}/confirm-signing-key'].post", update: {x-cchp-group: plugins, x-cli-name: confirm-signing-key, x-cli-description: "Accept the new publisher signing key of a plugin package."}}
+  - {target: "$.paths['/api/admin/plugins/package-versions/{versionId}/withdraw'].post", update: {x-cchp-group: plugins, x-cli-name: withdraw-version, x-cli-description: "Withdraw a plugin package version so that nothing new installs or upgrades to it."}}
+  - {target: "$.paths['/api/admin/plugins/sources'].get", update: {x-cchp-group: plugins, x-cli-name: sources, x-cli-description: "List the OCI registries that plugins are synced from."}}
+  - {target: "$.paths['/api/admin/plugins/sources'].put", update: {x-cchp-group: plugins, x-cli-name: save-source, x-cli-description: "Add or change an OCI registry that plugins are synced from."}}
+  - {target: "$.paths['/api/admin/plugins/sources/{sourceId}/sync'].post", update: {x-cchp-group: plugins, x-cli-name: sync-source, x-cli-description: "Sync new plugin versions from an OCI registry now."}}
+  - {target: "$.paths['/api/admin/plugins/runners'].get", update: {x-cchp-group: plugins, x-cli-name: runners, x-cli-description: "List plugin runners and their heartbeats."}}
+  - {target: "$.paths['/api/admin/plugins/spend'].get", update: {x-cchp-group: plugins, x-cli-name: spend, x-cli-description: "Show plugin spend across the platform: today's and this month's totals, the top installs, and unknown and over-limit reservations."}}
+  - {target: "$.paths['/api/admin/plugins/settings'].get", update: {x-cchp-group: plugins, x-cli-name: settings, x-cli-description: "Show the plugin system's platform settings (master switch, digest trust, GeoIP access, disabled capabilities) and the temporary suspensions in effect."}}
+  - {target: "$.paths['/api/admin/plugins/settings'].put", update: {x-cchp-group: plugins, x-cli-name: update-settings, x-cli-description: "Change the plugin system's platform settings."}}
+  - {target: "$.paths['/api/admin/plugins/suppressions/release-all'].post", update: {x-cchp-group: plugins, x-cli-name: release-all-suppressions, x-cli-description: "End every key suspension that plugins created across the platform, for emergency recovery."}}
 
   # ── Providers ──
   - {target: "$.paths['/api/admin/providers'].get", update: {x-cchp-group: providers, x-cli-name: overview, x-cli-description: "List the organization's providers (read-only overview)."}}
@@ -961,9 +1040,10 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}'].patch", update: {x-cchp-group: providers, x-cli-name: update-group, x-cli-description: "Change a provider group."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/bindings'].get", update: {x-cchp-group: providers, x-cli-name: group-bindings, x-cli-description: "List the LLM tokens and provider keys still bound to a provider group."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/schedulable-models'].get", update: {x-cchp-group: providers, x-cli-name: group-models, x-cli-description: "List the models a provider group can route, with their status."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/scheduling'].get", update: {x-cchp-group: providers, x-cli-name: group-scheduling, x-cli-description: "Show how a provider group picks keys and why."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/scheduling/keys/{keyId}'].get", update: {x-cchp-group: providers, x-cli-name: group-key-scheduling, x-cli-description: "Show the scheduling figures of one key in a provider group, per model and client."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/scheduling/keys/{keyId}'].get.parameters[?(@.name == 'keyId')]", update: {x-cli-description: "Provider key ID of a group member."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/routing'].get", update: {x-cchp-group: providers, x-cli-name: group-routing, x-cli-description: "Show how a provider group routes each model: the strategy, each model's request rate and each key's rank, probability, price and state."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/report'].get", update: {x-cchp-group: providers, x-cli-name: report, x-cli-description: "Show a provider's report: each key's requests, health, cost multiplier and effective multiplier over the last 24 hours."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/report/keys/{keyId}'].get", update: {x-cchp-group: providers, x-cli-name: key-report, x-cli-description: "Show the TTFT, output speed, cache coefficient and success rate of a provider key's busiest models over the last 24 hours, in 30-minute blocks."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/report/keys/{keyId}'].get.parameters[?(@.name == 'keyId')]", update: {x-cli-description: "Provider key ID."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/model-rules'].get", update: {x-cchp-group: providers, x-cli-name: group-model-rules, x-cli-description: "Show the rules that narrow which models a provider group schedules; without rules it schedules every model of its keys."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/model-rules'].put", update: {x-cchp-group: providers, x-cli-name: set-group-model-rules, x-cli-description: "Replace the exact and wildcard rules that narrow which models a provider group schedules."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/provider-groups/{groupId}/model-rules'].delete", update: {x-cchp-group: providers, x-cli-name: reset-group-model-rules, x-cli-description: "Remove a provider group's model rules so it schedules every model of its keys again."}}
@@ -980,9 +1060,6 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/favicons'].get", update: {x-cchp-group: providers, x-cli-name: favicons, x-cli-description: "Download every provider's icon at once."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/inventory'].get", update: {x-cchp-group: providers, x-cli-name: inventory, x-cli-description: "List every provider's endpoints and keys at once."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/health-bars'].get", update: {x-cchp-group: keys, x-cli-name: health, x-cli-description: "Show recent health bars for provider keys."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/liveness/contexts'].post", update: {x-cchp-group: keys, x-cli-name: check-defaults, x-cli-description: "Show the default settings for key health checks."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/liveness/states'].get", update: {x-cchp-group: keys, x-cli-name: check-results, x-cli-description: "List the latest health check result of each key."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/liveness-test/batch'].post", update: {x-cchp-group: keys, x-cli-name: check-many, x-cli-description: "Health-check several keys and stream the progress."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/runtime'].get", update: {x-cchp-group: keys, x-cli-name: runtime, x-cli-description: "Show provider keys' live state: cooldowns, limits and concurrency."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/stats'].get", update: {x-cchp-group: keys, x-cli-name: stats, x-cli-description: "Show request statistics per provider key."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}'].delete", update: {x-cchp-group: providers, x-cli-name: delete, x-cli-description: "Delete a provider."}}
@@ -994,23 +1071,14 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync'].get", update: {x-cchp-group: providers, x-cli-name: new-api-group-sync, x-cli-description: "Show a provider's New API group sync settings, latest status, managed key count and active run."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync'].patch", update: {x-cchp-group: providers, x-cli-name: update-new-api-group-sync, x-cli-description: "Change a provider's New API group auto-sync settings without starting a sync now."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/preview'].post", update: {x-cchp-group: providers, x-cli-name: preview-new-api-group-sync, x-cli-description: "Preview a provider's upstream New API groups, missing protocol endpoints and managed key status without making changes."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/run'].post", update: {x-cchp-group: providers, x-cli-name: run-new-api-group-sync, x-cli-description: "Save New API group sync settings and reconcile now: create upstream tokens, missing endpoints and managed keys, and revoke removed groups' managed keys."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs'].post", update: {x-cchp-group: providers, x-cli-name: start-new-api-group-sync, x-cli-description: "Save New API group sync settings and queue a background reconciliation run; check progress with cchp providers new-api-group-sync-run."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/run'].post", update: {x-cchp-group: providers, x-cli-name: run-new-api-group-sync, x-cli-description: "Save New API group sync settings and reconcile now: create upstream tokens, missing endpoints and managed keys (or, with adopt_existing_keys, take over matching local keys), and revoke removed groups' managed keys."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs'].post", update: {x-cchp-group: providers, x-cli-name: start-new-api-group-sync, x-cli-description: "Save New API group sync settings and queue a background reconciliation run that can also take over matching local keys; check progress with cchp providers new-api-group-sync-run."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs/{runId}'].get", update: {x-cchp-group: providers, x-cli-name: new-api-group-sync-run, x-cli-description: "Show a New API group sync run's status, stage, per-group progress and summary."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/new-api-group-sync/runs/{runId}'].get.parameters[?(@.name == 'runId')]", update: {x-cli-description: "Sync run ID, as cchp providers start-new-api-group-sync returns it."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon'].get", update: {x-cchp-group: providers, x-cli-name: favicon, x-cli-description: "Download a provider's icon."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon/refresh'].post", update: {x-cchp-group: providers, x-cli-name: refresh-favicon, x-cli-description: "Fetch a provider's icon again."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/favicon/status'].get", update: {x-cchp-group: providers, x-cli-name: favicon-status, x-cli-description: "Show whether a provider's icon was fetched."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/balance'].get", update: {x-cchp-group: keys, x-cli-name: balance, x-cli-description: "Show a provider key's upstream balance."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/liveness-test'].post", update: {x-cchp-group: keys, x-cli-name: check, x-cli-description: "Health-check one provider key."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness/endpoints'].get", update: {x-cchp-group: providers, x-cli-name: check-endpoints, x-cli-description: "List the endpoints a provider's health checks can use."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness-tasks'].get", update: {x-cchp-group: providers, x-cli-name: check-schedules, x-cli-description: "List a provider's scheduled health checks."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness-tasks'].post", update: {x-cchp-group: providers, x-cli-name: create-check-schedule, x-cli-description: "Schedule a health check for a provider."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness-tasks/{taskId}'].delete", update: {x-cchp-group: providers, x-cli-name: delete-check-schedule, x-cli-description: "Delete a scheduled health check."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness-tasks/{taskId}'].put", update: {x-cchp-group: providers, x-cli-name: update-check-schedule, x-cli-description: "Change a scheduled health check."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness-tasks/{taskId}/run'].post", update: {x-cchp-group: providers, x-cli-name: run-check-schedule, x-cli-description: "Run a scheduled health check now."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness-tasks/{taskId}/runs'].get", update: {x-cchp-group: providers, x-cli-name: check-schedule-runs, x-cli-description: "List a scheduled health check's past runs."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/liveness-test'].post", update: {x-cchp-group: providers, x-cli-name: check-new-key, x-cli-description: "Health-check a key before saving it."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/models/preview'].post", update: {x-cchp-group: providers, x-cli-name: preview-models, x-cli-description: "List a provider's upstream models without saving them."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/test'].post", update: {x-cchp-group: providers, x-cli-name: test, x-cli-description: "Check that a provider is reachable; nothing is changed."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/upstream/cooldowns'].get", update: {x-cchp-group: providers, x-cli-name: cooldowns, x-cli-description: "List upstream checks that are cooling down."}}
@@ -1039,7 +1107,8 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/page'].get.parameters[?(@.name == 'providerId')]", update: {x-cli-description: "Only keys of this provider; then the list sorts by scheduling order and takes at most one group."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/page'].get.parameters[?(@.name == 'q')]", update: {x-cli-description: "Search key names, notes and last four characters, provider names, slugs and notes, and group names."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/page'].get.parameters[?(@.name == 'tz')]", update: {x-cli-description: "Your IANA time zone, where today starts for today's requests; default UTC."}}
-  - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/page'].get.parameters[?(@.name == 'sort')]", update: {x-cli-description: "Sort by scheduling order, provider name, health (worst first when ascending) or today's requests."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/page'].get.parameters[?(@.name == 'sort')]", update: {x-cli-description: "Sort by scheduling order, provider name, health (worst first when ascending), today's requests, 7-day usage, cost multiplier or the chance of being picked in a group (probability needs exactly one group)."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/page'].get.parameters[?(@.name == 'routingEntry')]", update: {x-cli-description: "With sort probability, rank by the probability on this routing entry (model ID and request type separated by |); weighted by traffic over all entries when left out."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/summary'].get", update: {x-cchp-group: keys, x-cli-name: summary, x-cli-description: "Count the keys that match the filters of cchp keys list and show today's figures for them."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/summary'].get.parameters[?(@.name == 'status')]", update: {x-cli-description: "Only keys in this state: active, balance_paused or disabled; every key that is not deleted when left out."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/keys/summary'].get.parameters[?(@.name == 'providerId')]", update: {x-cli-description: "Only keys of this provider."}}
@@ -1084,6 +1153,72 @@ actions:
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/sip-webhook-secret'].put", update: {x-cchp-group: keys, x-cli-name: set-sip-secret, x-cli-description: "Set a key's SIP webhook signing secret."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/task-callbacks'].get", update: {x-cchp-group: keys, x-cli-name: task-callbacks, x-cli-description: "Show a key's asynchronous task callback settings; the signing secret is never shown."}}
   - {target: "$.paths['/api/account/orgs/{orgId}/providers/{providerId}/keys/{keyId}/task-callbacks'].put", update: {x-cchp-group: keys, x-cli-name: update-task-callbacks, x-cli-description: "Change a key's asynchronous task callback settings and signing secret."}}
+
+  # ── Provider tests and client recordings ──
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/overview'].get", update: {x-cchp-group: provider-tests, x-cli-name: overview, x-cli-description: "Show the provider test summary: enabled tasks, the last 24 hours' pass rate and platform cost, and keys that keep failing."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/response-catalog'].get", update: {x-cchp-group: provider-tests, x-cli-name: response-catalog, x-cli-description: "List the fields, operators and limits that response checks can use."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/key-contexts'].get", update: {x-cchp-group: provider-tests, x-cli-name: key-contexts, x-cli-description: "Show what a manual test of each key would use: the endpoints it can test, the default endpoint and model, and suggested templates."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/key-states'].get", update: {x-cchp-group: provider-tests, x-cli-name: key-states, x-cli-description: "Show each key's latest test result for each endpoint."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/key-states'].get.parameters[?(@.name == 'providerId')]", update: {x-cli-description: "Only keys of this provider."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/cost-estimate'].post", update: {x-cchp-group: provider-tests, x-cli-name: estimate-cost, x-cli-description: "Estimate what a test task would cost per round, per day and per month, without saving it."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/evaluate-rule'].post", update: {x-cchp-group: provider-tests, x-cli-name: evaluate-rule, x-cli-description: "Try a response check on a sample response or an earlier execution, without saving anything."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/target-candidates'].post", update: {x-cchp-group: provider-tests, x-cli-name: target-candidates, x-cli-description: "List the keys that can run a template and model, with their default endpoint, conversion flags and multipliers."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/runs'].get", update: {x-cchp-group: provider-tests, x-cli-name: runs, x-cli-description: "List test runs, scheduled, manual and recovery probes, newest first."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/runs'].get.parameters[?(@.name == 'origin')]", update: {x-cli-description: "Only runs of this origin: scheduled_test, manual_test or recovery_probe."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/runs'].get.parameters[?(@.name == 'status')]", update: {x-cli-description: "Only runs in this state: queued, running, completed or cancelled."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/runs'].get.parameters[?(@.name == 'taskId')]", update: {x-cli-description: "Only runs of this scheduled test task."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/runs'].post", update: {x-cchp-group: provider-tests, x-cli-name: start-run, x-cli-description: "Test one key, up to 500 keys, or credentials that are not saved yet, now."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/runs/{runId}'].get", update: {x-cchp-group: provider-tests, x-cli-name: run, x-cli-description: "Show a test run: its settings snapshot, estimated and actual cost, and every key's execution."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/runs/{runId}/cancel'].post", update: {x-cchp-group: provider-tests, x-cli-name: cancel-run, x-cli-description: "Cancel a test run's queued executions; keys being tested stop after the current round."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/executions/{executionId}'].get", update: {x-cchp-group: provider-tests, x-cli-name: execution, x-cli-description: "Show one key's test execution with its decrypted rounds and the result of each response check."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks'].get", update: {x-cchp-group: provider-tests, x-cli-name: tasks, x-cli-description: "List scheduled test tasks with their latest 20 results and summary figures."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks'].get.parameters[?(@.name == 'clientId')]", update: {x-cli-description: "Only tasks for this client definition ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks'].get.parameters[?(@.name == 'model')]", update: {x-cli-description: "Only tasks whose model contains this text."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks'].get.parameters[?(@.name == 'search')]", update: {x-cli-description: "Search task names, notes and models."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks'].post", update: {x-cchp-group: provider-tests, x-cli-name: create-task, x-cli-description: "Create a scheduled test task."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}'].get", update: {x-cchp-group: provider-tests, x-cli-name: task, x-cli-description: "Show a scheduled test task with its schedule and latest runs."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}'].put", update: {x-cchp-group: provider-tests, x-cli-name: update-task, x-cli-description: "Change a scheduled test task, its target keys and its schedule."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}'].delete", update: {x-cchp-group: provider-tests, x-cli-name: delete-task, x-cli-description: "Delete a scheduled test task and its schedule; its run history stays."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/enabled'].patch", update: {x-cchp-group: provider-tests, x-cli-name: set-task-enabled, x-cli-description: "Turn a scheduled test task on or off."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/run'].post", update: {x-cchp-group: provider-tests, x-cli-name: run-task, x-cli-description: "Run a scheduled test task now with its current settings."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/executions'].get", update: {x-cchp-group: provider-tests, x-cli-name: task-executions, x-cli-description: "List a scheduled test task's executions, one per key and run."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/executions'].get.parameters[?(@.name == 'keyId')]", update: {x-cli-description: "Only executions of this key."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/executions'].get.parameters[?(@.name == 'status')]", update: {x-cli-description: "Only executions with this result, for example passed, rule_failed or request_failed."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/runs'].get", update: {x-cchp-group: provider-tests, x-cli-name: task-runs, x-cli-description: "List a scheduled test task's runs, newest first."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/history'].get", update: {x-cchp-group: provider-tests, x-cli-name: task-history, x-cli-description: "Show each key's recent results, pass rate, performance and failure streak for a scheduled test task, compared with the previous period."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/series'].get", update: {x-cchp-group: provider-tests, x-cli-name: task-series, x-cli-description: "Show a scheduled test task's TTFT, output speed, cache coefficient, pass rate and cost over time, overall and for up to 6 keys."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/series'].get.parameters[?(@.name == 'bucket')]", update: {x-cli-description: "Time bucket: 1h, 6h or 1d; chosen from the time range when left out."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/provider-tests/tasks/{taskId}/series'].get.parameters[?(@.name == 'keyIds')]", update: {x-cli-description: "Keys to show on their own, at most 6."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings'].get", update: {x-cchp-group: provider-tests, x-cli-name: recordings, x-cli-description: "List client recording sessions, newest first."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings'].get.parameters[?(@.name == 'clientDefinitionId')]", update: {x-cli-description: "Only sessions for this client definition ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings'].get.parameters[?(@.name == 'catalogEndpointId')]", update: {x-cli-description: "Only sessions for this catalog endpoint ID or short name."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings'].get.parameters[?(@.name == 'status')]", update: {x-cli-description: "Only sessions in this state."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings'].get.parameters[?(@.name == 'limit')]", update: {x-cli-description: "Most sessions to return (default 50, at most 200); there is no next page."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings'].post", update: {x-cchp-group: provider-tests, x-cli-name: create-recording, x-cli-description: "Start recording a real client's requests: issue a temporary recording key, shown once, and two marker prompts."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}'].get", update: {x-cchp-group: provider-tests, x-cli-name: recording, x-cli-description: "Show a recording session with its exchanges and the inferred template draft."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/cancel'].post", update: {x-cchp-group: provider-tests, x-cli-name: cancel-recording, x-cli-description: "Cancel a recording session and revoke its temporary key."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/exchanges/{exchangeId}'].get", update: {x-cchp-group: provider-tests, x-cli-name: recording-exchange, x-cli-description: "Show a recorded exchange's decrypted request and response, without credentials."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/infer'].post", update: {x-cchp-group: provider-tests, x-cli-name: infer-recording, x-cli-description: "Infer a multi-turn request template from a recording and check it by replay."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/rotate-key'].post", update: {x-cchp-group: provider-tests, x-cli-name: rotate-recording-key, x-cli-description: "Replace a recording session's temporary key; the new key is shown once."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/save'].post", update: {x-cchp-group: provider-tests, x-cli-name: save-recording, x-cli-description: "Save a recording's inferred template and end the session."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}'].*.parameters[?(@.name == 'id')]", update: {x-cli-description: "Recording session ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/cancel'].*.parameters[?(@.name == 'id')]", update: {x-cli-description: "Recording session ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/exchanges/{exchangeId}'].*.parameters[?(@.name == 'id')]", update: {x-cli-description: "Recording session ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/infer'].*.parameters[?(@.name == 'id')]", update: {x-cli-description: "Recording session ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/rotate-key'].*.parameters[?(@.name == 'id')]", update: {x-cli-description: "Recording session ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-recordings/{id}/save'].*.parameters[?(@.name == 'id')]", update: {x-cli-description: "Recording session ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates'].get", update: {x-cchp-group: provider-tests, x-cli-name: templates, x-cli-description: "List client request templates: the built-in ones and your organization's recorded ones."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates'].get.parameters[?(@.name == 'clientId')]", update: {x-cli-description: "Only templates for this client definition ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates'].get.parameters[?(@.name == 'endpointType')]", update: {x-cli-description: "Only templates for this endpoint type (catalog endpoint ID or short name)."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates'].get.parameters[?(@.name == 'catalogEndpointId')]", update: {x-cli-description: "Only templates for this catalog endpoint ID."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates'].get.parameters[?(@.name == 'source')]", update: {x-cli-description: "Only built-in (builtin) or recorded (recorded) templates."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates/{templateRef}'].get", update: {x-cchp-group: provider-tests, x-cli-name: template, x-cli-description: "Show a request template with its annotations, omitted headers and replay check."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates/{templateRef}'].patch", update: {x-cchp-group: provider-tests, x-cli-name: update-template, x-cli-description: "Rename a recorded template, change its note or make it the default."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates/{templateRef}'].patch.parameters[?(@.name == 'templateRef')]", update: {x-cli-description: "Recorded template ID (crt_...)."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates/{templateRef}'].delete", update: {x-cchp-group: provider-tests, x-cli-name: delete-template, x-cli-description: "Delete a recorded template; built-in templates and templates that active test tasks use cannot be deleted."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates/{templateRef}'].delete.parameters[?(@.name == 'templateRef')]", update: {x-cli-description: "Recorded template ID (crt_...)."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates/{templateRef}/export'].get", update: {x-cchp-group: provider-tests, x-cli-name: export-template, x-cli-description: "Export a template as a built-in template bundle (platform administrators only)."}}
+  - {target: "$.paths['/api/account/orgs/{orgId}/client-templates/{templateRef}/render-preview'].post", update: {x-cchp-group: provider-tests, x-cli-name: preview-template, x-cli-description: "Render the requests a template would send for a model and prompts, without saving anything."}}
 
   # ── Quota ──
   - {target: "$.paths['/api/account/quota/effective'].get", update: {x-cchp-group: billing, x-cli-name: effective-quota, x-cli-description: "Show the quota that applies after merging every level, with how it was worked out."}}
