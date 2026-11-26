@@ -117,3 +117,25 @@ func TestEveryReadIsSafeToRetryAndOnlyReads(t *testing.T) {
 		}
 	}
 }
+
+// Client recordings in CCHP v1.0.17 hand out a temporary recording key once,
+// on create and on rotate; it must go to --secret-out, never to stdout.
+func TestRecordingKeysAreOneTimeSecrets(t *testing.T) {
+	for _, id := range []string{"createClientRecording", "rotateClientRecordingKey"} {
+		op := mustOp(t, id)
+		if !op.Policy.SecretOutput() || len(op.Policy.SecretFields) != 1 || op.Policy.SecretFields[0] != "apiKey" {
+			t.Fatalf("%s secret fields %v", id, op.Policy.SecretFields)
+		}
+		o := Options{Op: op, Agent: true, AllowWrite: true, Confirm: op.ID}
+		if f := policyErr(t, o); f == nil {
+			t.Fatalf("%s without --secret-out must be refused", id)
+		}
+		o.SecretOut = "recording-key.json"
+		if f := policyErr(t, o); f != nil {
+			t.Fatalf("%s refused: %v", id, f)
+		}
+	}
+	if mustOp(t, "rotateClientRecordingKey").Policy.Risk != catalog.RiskDestructive {
+		t.Fatal("rotating revokes the old recording key at once")
+	}
+}

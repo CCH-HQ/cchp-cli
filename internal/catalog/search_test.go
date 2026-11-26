@@ -24,6 +24,14 @@ var commonSearches = []struct {
 	{"moderation events", "listModerationEvents", "safety moderation-events"},
 	{"model aliases", "listModelAliases", "models aliases"},
 	{"Provider Keys", "listProviderKeyPage", "keys list"},
+	{"provider report", "getProviderReport", "providers report"},
+	{"group routing", "getProviderGroupRouting", "providers group-routing"},
+	{"test tasks", "listProviderTestTasks", "provider-tests tasks"},
+	{"test runs", "listProviderTestRuns", "provider-tests runs"},
+	{"client recordings", "listClientRecordings", "provider-tests recordings"},
+	{"request templates", "listClientTemplates", "provider-tests templates"},
+	{"plugins", "listOrgPluginInstalls", "plugins list"},
+	{"plugin publishers", "listPluginPublishers", "plugins publishers"},
 }
 
 func TestSearchPutsTheCommandPeopleMeanFirst(t *testing.T) {
