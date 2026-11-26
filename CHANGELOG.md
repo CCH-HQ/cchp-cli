@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.2.2] - 2026-11-26
 
 Built from the CCHP v1.0.17 control-plane spec with embedded Restish v2.3.0.
 
